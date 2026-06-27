@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>時間簿 — クリップボード見本</title>
+<style>
+  :root{
+    --bg:#E6E3DC; --board:#F7F5F1; --paper:#FBFAF7;
+    --ink:#2E2E2B; --muted:#807C73; --faint:#ABA69C;
+    --line:#E1DDD4; --line-strong:#CFCAC0;
+    --q1:#A3604C; --q2:#5B7186; --q3:#B08A4A; --q4:#A8A49B;
+    --fixed:#6E6E89; --recurring:#5B7186; --invest:#A9854F; --balance:#79906E;
+    --clip:#B9B4AA;
+    --font:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 60px;}
+  .lead{font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;line-height:1.6;}
+  .lead b{color:var(--ink);}
+
+  /* クリップボード本体 */
+  .clipboard{position:relative;background:var(--board);border-radius:18px;padding:34px 16px 16px;box-shadow:0 10px 30px rgba(46,46,43,.14),0 2px 6px rgba(46,46,43,.08);border:1px solid var(--line-strong);}
+  .clip{position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:linear-gradient(180deg,#CFCAC0,#A9A49A);border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.5);}
+  .clip::after{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:64px;height:8px;background:rgba(0,0,0,.12);border-radius:6px;}
+
+  /* ページャ操作 */
+  .pager{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .pager .arrow{width:34px;height:34px;border-radius:9px;border:1px solid var(--line-strong);background:var(--paper);color:var(--muted);font-size:16px;cursor:pointer;flex:none;}
+  .pager .arrow:active{transform:scale(.95);}
+  .ctxname{font-size:17px;font-weight:700;letter-spacing:-.01em;flex:1;text-align:center;}
+  .dots{display:flex;gap:6px;justify-content:center;margin-top:10px;}
+  .dots i{width:7px;height:7px;border-radius:50%;background:var(--line-strong);transition:all .2s;}
+  .dots i.on{background:var(--ink);width:18px;border-radius:4px;}
+
+  /* めくられる紙 */
+  .stage{perspective:1400px;}
+  .page{background:var(--paper);border-radius:12px;border:1px solid var(--line);padding:14px;box-shadow:var(--shadow);transform-origin:left center;}
+  .page.flip-next{animation:flipNext .42s ease;}
+  .page.flip-prev{animation:flipPrev .42s ease;}
+  @keyframes flipNext{0%{transform:rotateY(-22deg) translateX(-18px);opacity:.2;}100%{transform:none;opacity:1;}}
+  @keyframes flipPrev{0%{transform:rotateY(22deg) translateX(18px);opacity:.2;}100%{transform:none;opacity:1;}}
+
+  .sect{margin-bottom:12px;}
+  .sect h4{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:0 0 6px;display:flex;align-items:center;gap:6px;}
+  .sect h4 .tot{margin-left:auto;font-family:var(--mono);color:var(--faint);font-weight:600;}
+
+  /* 月カレンダー */
+  .mhead{font-size:13px;font-weight:700;margin-bottom:6px;}
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+  .dow{font-size:9px;color:var(--faint);text-align:center;padding:2px 0;font-weight:600;}
+  .cell{min-height:44px;background:var(--board);border-radius:5px;padding:3px;position:relative;}
+  .cell.out{opacity:.4;}
+  .cell.today{outline:2px solid var(--q1);outline-offset:-2px;}
+  .cell .n{font-family:var(--mono);font-size:9px;color:var(--muted);}
+  .cell .e{font-size:8px;line-height:1.3;color:#fff;border-radius:3px;padding:1px 3px;margin-top:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+
+  /* 週・年間 */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row{display:flex;gap:7px;align-items:flex-start;font-size:12px;padding:5px 7px;background:var(--board);border-radius:6px;margin-bottom:5px;}
+  .row .d{font-family:var(--mono);font-size:10px;color:var(--muted);flex:none;min-width:30px;}
+  .row .pin{width:8px;height:8px;border-radius:50%;flex:none;margin-top:3px;}
+  .row .t{flex:1;line-height:1.4;}
+
+  /* 4象限 */
+  .matrix{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .quad{background:var(--board);border-radius:8px;padding:8px;min-height:64px;border-top:3px solid var(--q4);}
+  .quad[data-q="1"]{border-top-color:var(--q1);}
+  .quad[data-q="2"]{border-top-color:var(--q2);}
+  .quad[data-q="3"]{border-top-color:var(--q3);}
+  .quad .ql{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+  .quad .ql .ic{width:12px;height:12px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:#fff;}
+  .task{font-size:11px;background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:4px 7px;margin-bottom:4px;display:flex;gap:6px;align-items:center;}
+  .task .ic{width:13px;height:13px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;}
+  .task .tt{flex:1;line-height:1.3;}
+
+  /* 収支バー */
+  .budget{background:var(--board);border-radius:10px;padding:10px 12px;}
+  .bar{height:18px;display:flex;border-radius:999px;overflow:hidden;background:var(--line);}
+  .bar .seg{height:100%;transition:width .4s;}
+  .bar .seg.fixed{background:var(--fixed);} .bar .seg.recurring{background:var(--recurring);} .bar .seg.invest{background:var(--invest);} .bar .seg.balance{background:var(--balance);}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:10px;color:var(--muted);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend i{width:8px;height:8px;border-radius:50%;}
+  .legend b{font-family:var(--mono);color:var(--ink);font-weight:600;}
+
+  .hint{font-size:11px;color:var(--faint);text-align:center;margin-top:14px;}
+  @media(max-width:480px){.cols{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="lead"><b>クリップボード見本</b>　左右にスワイプ／矢印で「文脈」をめくります。盤面の枠は固定で、めくるたびに中身（カレンダー・週・年間・4象限・収支）がその文脈に切り替わります。</p>
+
+  <div class="clipboard">
+    <div class="clip"></div>
+    <div class="pager">
+      <button class="arrow" id="prev">‹</button>
+      <div class="ctxname" id="ctxname">—</div>
+      <button class="arrow" id="next">›</button>
+    </div>
+    <div class="stage">
+      <div class="page" id="page"></div>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+  <p class="hint">これは見た目と操作感の試作です。データはサンプルで、保存・編集はまだ入っていません。</p>
+</div>
+
+<script>
+const QCOL=["","var(--q1)","var(--q2)","var(--q3)","var(--q4)"];
+const QICON=["","!","◔","→","·"];
+const QNAME=["","今すぐ","計画","委任","削減"];
+const today=new Date();
+const Y=today.getFullYear(), M=today.getMonth();
+const MNAME=`${Y}年 ${M+1}月`;
+const pad=n=>String(n).padStart(2,"0");
+
+/* サンプル文脈（顧客名・実名はダミー） */
+const CTX=[
+  {
+    name:"全予定",
+    events:{3:["定例MTG","WK"],9:["学会出展準備","WK"],12:["美術展（外部）","PV"],15:["秋の学会・出展","WK"],22:["ジム","PV"]},
+    week:[["月","定例ミーティング",2],["火","ストレッチジム",4],["水","ツール開発 2h",2],["木","チーム共有会",3],["金","受信トレイ整理",3]],
+    year:[["09/15","秋の学会・出展",1],["08/20","概算要求 受付",2],["07/12","美術展 会期末",3],["10/01","教科書改訂 締切",2]],
+    tasks:[["学会の配布資料",1],["新刊マッチング開発",2],["請求書まわり",3],["積読の消化",4],["提案メモ整理",1]],
+    budget:[14,9,8,9]
+  },
+  {
+    name:"顧客A大学",
+    events:{4:["訪問","WK"],11:["見積提示","WK"],18:["導入説明会","WK"]},
+    week:[["火","A大 訪問準備",2],["木","A大 見積作成",1]],
+    year:[["09/30","電子教科書 移行","2"],["11/01","次年度提案",2]],
+    tasks:[["見積の最終確認",1],["導入説明会の資料",2],["問い合わせ返信",3]],
+    budget:[6,4,5,6]
+  },
+  {
+    name:"顧客B大学",
+    events:{7:["定例連絡","WK"],20:["納品","WK"]},
+    week:[["水","B大 納品準備",1],["金","B大 定例連絡",3]],
+    year:[["10/15","蔵書調査 報告",2],["12/01","更新契約",1]],
+    tasks:[["納品データ点検",1],["所蔵調査ツール改修",2],["事務連絡",4]],
+    budget:[5,3,4,7]
+  },
+  {
+    name:"プライベート",
+    events:{12:["美術展","PV"],14:["読書会","PV"],22:["ジム","PV"],27:["旅行計画","PV"]},
+    week:[["火","ストレッチジム",2],["土","小説の執筆",2],["日","ポッドキャスト",4]],
+    year:[["07/12","美術展 会期末",3],["08/10","懸賞 応募締切",1]],
+    tasks:[["懸賞の応募作成",1],["小説プロット",2],["積読の消化",4]],
+    budget:[3,2,6,11]
+  }
+];
+
+let idx=0;
+
+function renderDots(){
+  const d=document.getElementById("dots");
+  d.innerHTML=CTX.map((_,i)=>`<i class="${i===idx?'on':''}"></i>`).join("");
+}
+
+function monthHTML(events){
+  const first=new Date(Y,M,1);
+  const startDow=(first.getDay()+6)%7;
+  const last=new Date(Y,M+1,0).getDate();
+  let cells="";
+  ["月","火","水","木","金","土","日"].forEach(d=>cells+=`<div class="dow">${d}</div>`);
+  for(let i=0;i<42;i++){
+    const dayNum=i-startDow+1;
+    const out=dayNum<1||dayNum>last;
+    const isToday=!out && dayNum===today.getDate();
+    let ev="";
+    if(!out && events[dayNum]){const[label,book]=events[dayNum];const c=book==="WK"?"var(--recurring)":"var(--invest)";ev=`<div class="e" style="background:${c}">${label}</div>`;}
+    cells+=`<div class="cell ${out?'out':''} ${isToday?'today':''}">${out?'':`<div class="n">${dayNum}</div>${ev}`}</div>`;
+  }
+  return `<div class="mhead">${MNAME}</div><div class="mgrid">${cells}</div>`;
+}
+
+function listHTML(items,type){
+  if(!items.length)return `<div style="font-size:11px;color:var(--faint);padding:4px;">なし</div>`;
+  return items.map(it=>{
+    if(type==="week"){const[d,t,q]=it;return `<div class="row"><span class="d">${d}</span><span class="pin" style="background:${QCOL[q]}"></span><span class="t">${t}</span></div>`;}
+    else{const[d,t,q]=it;return `<div class="row"><span class="d">${d}</span><span class="pin" style="background:${QCOL[q]}"></span><span class="t">${t}</span></div>`;}
+  }).join("");
+}
+
+function matrixHTML(tasks){
+  const buckets={1:[],2:[],3:[],4:[]};
+  tasks.forEach(([t,q])=>buckets[q].push(t));
+  return [1,2,3,4].map(q=>{
+    const inner=buckets[q].map(t=>`<div class="task"><span class="ic" style="background:${QCOL[q]}">${QICON[q]}</span><span class="tt">${t}</span></div>`).join("")||`<div style="font-size:10px;color:var(--faint);">—</div>`;
+    return `<div class="quad" data-q="${q}"><div class="ql"><span class="ic" style="background:${QCOL[q]}">${QICON[q]}</span>${QNAME[q]}</div>${inner}</div>`;
+  }).join("");
+}
+
+function budgetHTML(b){
+  const[f,r,v,bal]=b;const tot=f+r+v+bal||1;
+  const pct=x=>x/tot*100;
+  const bar=`<div class="bar"><div class="seg fixed" style="width:${pct(f)}%"></div><div class="seg recurring" style="width:${pct(r)}%"></div><div class="seg invest" style="width:${pct(v)}%"></div><div class="seg balance" style="width:${pct(bal)}%"></div></div>`;
+  const leg=`<div class="legend"><span><i style="background:var(--fixed)"></i>固定 <b>${f}h</b></span><span><i style="background:var(--recurring)"></i>定期 <b>${r}h</b></span><span><i style="background:var(--invest)"></i>投資 <b>${v}h</b></span><span><i style="background:var(--balance)"></i>残 <b>${bal}h</b></span></div>`;
+  return bar+leg;
+}
+
+function render(dir){
+  const c=CTX[idx];
+  document.getElementById("ctxname").textContent=c.name;
+  const page=document.getElementById("page");
+  page.innerHTML=`
+    <div class="sect">${monthHTML(c.events)}</div>
+    <div class="sect cols">
+      <div><h4>今週</h4>${listHTML(c.week,"week")}</div>
+      <div><h4>年間</h4>${listHTML(c.year,"year")}</div>
+    </div>
+    <div class="sect"><h4>4象限（この文脈のタスク）</h4><div class="matrix">${matrixHTML(c.tasks)}</div></div>
+    <div class="sect"><h4>時間収支（週）<span class="tot">${c.budget.reduce((a,b)=>a+b,0)}h</span></h4>${budgetHTML(c.budget)}</div>
+  `;
+  page.classList.remove("flip-next","flip-prev");
+  void page.offsetWidth;
+  if(dir==="next")page.classList.add("flip-next");
+  else if(dir==="prev")page.classList.add("flip-prev");
+  renderDots();
+}
+
+function go(d){
+  if(d>0){idx=(idx+1)%CTX.length;render("next");}
+  else{idx=(idx-1+CTX.length)%CTX.length;render("prev");}
+}
+document.getElementById("next").onclick=()=>go(1);
+document.getElementById("prev").onclick=()=>go(-1);
+document.addEventListener("keydown",e=>{if(e.key==="ArrowRight")go(1);if(e.key==="ArrowLeft")go(-1);});
+
+/* スワイプ（マウス・タッチ統一） */
+let sx=null;
+const stage=document.querySelector(".stage");
+stage.addEventListener("pointerdown",e=>{sx=e.clientX;});
+stage.addEventListener("pointerup",e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;if(Math.abs(dx)>45){go(dx<0?1:-1);}});
+
+render();
+</script>
+</body>
+</html>
