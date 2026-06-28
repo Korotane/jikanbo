@@ -434,7 +434,38 @@
     .quad-grid { grid-template-columns: 1fr; }
     .views { gap: 14px; }
     .wrap { padding: 28px 16px 80px; }
+    .home-quad-mini { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ─── ホームタブ ─── */
+  .home-today-strip { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--line); flex-wrap:wrap; border-radius:var(--radius) var(--radius) 0 0; }
+  .ht-date { font-weight:700; font-size:15px; }
+  .ht-used { font-size:12px; color:var(--muted); }
+  .ht-link { margin-left:auto; font-size:12px; color:var(--plan); cursor:pointer; text-decoration:underline; white-space:nowrap; }
+  .ctx-pager { display:flex; align-items:center; gap:6px; padding:8px 16px; background:var(--surface-2); border-bottom:1px solid var(--line); }
+  .ctx-arrow { border:none; background:none; font-size:16px; cursor:pointer; color:var(--muted); padding:4px 10px; border-radius:4px; line-height:1; }
+  .ctx-arrow:hover { color:var(--ink); background:var(--surface); }
+  .ctx-name-label { flex:1; text-align:center; font-weight:700; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ctx-pager-wrap { display:flex; flex-direction:column; align-items:center; flex:1; gap:4px; }
+  .ctx-dots { display:flex; gap:5px; }
+  .ctx-dot { width:6px; height:6px; border-radius:50%; background:var(--line-strong); transition:background .15s; cursor:pointer; }
+  .ctx-dot.on { background:var(--plan); }
+  .home-quad-mini { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; }
+  .hq-box { background:var(--surface-2); border-radius:8px; padding:10px 12px; border-top:3px solid var(--muted); }
+  .hq-label { font-size:10px; font-weight:700; margin-bottom:6px; }
+  .hq-count { font-size:22px; font-weight:700; font-family:var(--font-mono); }
+  .hq-tasks { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.7; }
+  .home-bal-row { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
+  .home-bal-val { font-size:22px; font-weight:700; font-family:var(--font-mono); }
+  .home-bal-val.neg { color:var(--ember); }
+
+  /* quick-add 詳細設定 */
+  .qa-details { border:none; padding:0; margin:0; }
+  .qa-details summary { cursor:pointer; list-style:none; font-size:12px; font-weight:700; color:var(--plan); padding:10px 20px; border-top:1px solid var(--line); display:flex; align-items:center; gap:6px; user-select:none; }
+  .qa-details summary::-webkit-details-marker { display:none; }
+  .qa-details summary::before { content:"▶　"; }
+  .qa-details[open] summary::before { content:"▼　"; }
+  .qa-details-body { padding:0 20px 4px; }
 </style>
 </head>
 <body>
@@ -448,8 +479,9 @@
   <div class="nav-area">
     <div class="book" id="book-nav"></div>
     <div class="views">
+      <button data-view="home" class="on">ホーム</button>
       <button data-view="today">今日</button>
-      <button data-view="schedule" class="on">予定</button>
+      <button data-view="schedule">予定</button>
       <button data-view="monthly">月間</button>
       <button data-view="annual">年間</button>
       <button data-view="calendar">カレンダー</button>
@@ -458,6 +490,49 @@
       <button data-view="estimate">見積もり</button>
       <button data-view="export">書き出し</button>
     </div>
+  </div>
+
+  <!-- ホーム：全体俯瞰ダッシュボード -->
+  <div class="view on" id="v-home">
+    <div class="home-today-strip" id="home-today-strip"></div>
+    <div class="ctx-pager" id="home-ctx-pager">
+      <button class="ctx-arrow" id="home-ctx-prev">◀</button>
+      <div class="ctx-pager-wrap">
+        <div class="ctx-name-label" id="home-ctx-name">全予定</div>
+        <div class="ctx-dots" id="home-ctx-dots"></div>
+      </div>
+      <button class="ctx-arrow" id="home-ctx-next">▶</button>
+    </div>
+    <section class="panel" style="margin-top:0;border-radius:0">
+      <div class="panel-head">
+        <h2 id="home-cal-label"></h2>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="vsw" id="home-cal-prev">◀</button>
+          <button class="vsw" id="home-cal-today">今月</button>
+          <button class="vsw" id="home-cal-next">▶</button>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <div class="cal-grid" id="home-monthgrid"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>時間収支（月）</h2><span class="hint">月間の可処分残高</span></div>
+      <div class="panel-body">
+        <div class="home-bal-row">
+          <span style="font-size:12px;color:var(--muted)">可処分残高</span>
+          <span class="home-bal-val" id="home-bal-val">—</span>
+        </div>
+        <div class="bar" id="home-bar"></div>
+        <div class="legend" id="home-legend"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>4象限（タスク）</h2><span class="hint">4象限タブで詳細を確認・操作</span></div>
+      <div class="panel-body">
+        <div class="home-quad-mini" id="home-quad"></div>
+      </div>
+    </section>
   </div>
 
   <div class="view" id="v-today">
@@ -501,7 +576,7 @@
   </div>
 
   <!-- 予定タブ：追加フォーム・一覧・タグ管理 -->
-  <div class="view on" id="v-schedule">
+  <div class="view" id="v-schedule">
     <section class="panel">
       <div class="panel-head"><span class="n">＋</span><h2>予定を追加</h2></div>
       <div class="panel-body">
@@ -729,6 +804,41 @@
       </div>
     </div>
   </div>
+  <details class="qa-details" id="qa-details">
+    <summary>詳細設定（種別・繰り返し・公開レベル・文脈）</summary>
+    <div class="qa-details-body">
+      <div class="dlg-field">
+        <label>種別</label>
+        <select id="qa-kind">
+          <option value="">タスク（一時メモ）</option>
+          <option value="fixed">固定（確定予定）</option>
+          <option value="recurring">定期（繰り返し）</option>
+          <option value="growth">成長（学習・スキル）</option>
+          <option value="project">目標（案件・コミット）</option>
+          <option value="travel">移動（通勤・出張）</option>
+        </select>
+      </div>
+      <div class="dlg-field" id="qa-wrap-rep" style="display:none">
+        <label>繰り返し</label>
+        <select id="qa-rep">
+          <option value="weekly">毎週（同じ曜日）</option>
+          <option value="monthly-date">毎月（同じ日付）</option>
+        </select>
+      </div>
+      <div class="dlg-field">
+        <label>公開レベル</label>
+        <select id="qa-vis">
+          <option value="public">🌐 公開</option>
+          <option value="busy">◐ 多忙のみ</option>
+          <option value="private">● 非公開</option>
+        </select>
+      </div>
+      <div class="dlg-field">
+        <label>文脈</label>
+        <select id="qa-ctx"></select>
+      </div>
+    </div>
+  </details>
   <div class="dlg-foot">
     <button class="btn ghost" id="qa-cancel">キャンセル</button>
     <button class="btn plan" id="qa-save">追加</button>
@@ -771,7 +881,7 @@ function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b
 
 let state=load();
 let calY=today.getFullYear(),calM=today.getMonth(),calMode="month";
-let active="schedule";
+let active="home";
 let todayMode="today"; // "today" | "week"
 
 /* 読み取り専用互換レイヤー。items/windowsはグローバル、events/tasksはactiveContextでフィルタ */
@@ -1494,19 +1604,19 @@ function renderCalendar(){
   document.getElementById("ct-week").classList.toggle("on",calMode==="week");
   if(calMode==="month")drawMonth();else drawWeek();
 }
-function drawMonth(){
-  const g=document.getElementById("monthgrid");g.innerHTML="";
-  ["月","火","水","木","金","土","日"].forEach(d=>{const h=document.createElement("div");h.className="dow";h.textContent=d;g.appendChild(h);});
-  const first=new Date(calY,calM,1);let startDow=(first.getDay()+6)%7;
-  const gridStart=new Date(calY,calM,1-startDow);
-  const entries=monthEntries(calY,calM);
+function drawMonthGrid(container, year, month){
+  container.innerHTML="";
+  ["月","火","水","木","金","土","日"].forEach(d=>{const h=document.createElement("div");h.className="dow";h.textContent=d;container.appendChild(h);});
+  const first=new Date(year,month,1);const startDow=(first.getDay()+6)%7;
+  const gridStart=new Date(year,month,1-startDow);
+  const entries=monthEntries(year,month);
   const byDay={};entries.forEach(e=>{const k=iso(e.date);(byDay[k]=byDay[k]||[]).push(e);});
   for(let i=0;i<42;i++){
     const dt=new Date(gridStart.getFullYear(),gridStart.getMonth(),gridStart.getDate()+i);
     const dateStr=iso(dt);
     const cell=document.createElement("div");cell.className="daycell";
     cell.dataset.drop="day";cell.dataset.date=dateStr;
-    if(dt.getMonth()!==calM)cell.classList.add("other");
+    if(dt.getMonth()!==month)cell.classList.add("other");
     if(sameDay(dt,today))cell.classList.add("today");
     const num=document.createElement("div");num.className="daynum";num.textContent=dt.getDate();cell.appendChild(num);
     cell.onclick=e=>{if(!e.target.closest(".ev")&&!e.target.closest(".drag-handle"))openQuickAdd(dateStr);};
@@ -1522,8 +1632,96 @@ function drawMonth(){
       }
       cell.appendChild(el);
     });
-    g.appendChild(cell);
+    container.appendChild(cell);
   }
+}
+function drawMonth(){
+  const g=document.getElementById("monthgrid");if(!g)return;
+  drawMonthGrid(g,calY,calM);
+}
+
+/* ====== ホームタブ ====== */
+let homeCalY=today.getFullYear(),homeCalM=today.getMonth(),homeCtxIdx=0;
+// homeCtxIdx: 0=全予定, 1..n=state.contexts[n-1]
+
+function homeCtxList(){return [{id:null,name:"全予定",color:null},...(state.contexts||[])];}
+
+function renderHome(){
+  _renderHomeTodayStrip();
+  _renderCtxPager();
+  const lbl=document.getElementById("home-cal-label");if(lbl)lbl.textContent=`${homeCalY}年 ${homeCalM+1}月`;
+  const hg=document.getElementById("home-monthgrid");if(hg)drawMonthGrid(hg,homeCalY,homeCalM);
+  _renderHomeBalance();
+  _renderHomeMiniQuad();
+}
+
+function _renderHomeTodayStrip(){
+  const el=document.getElementById("home-today-strip");if(!el)return;
+  const DOW=["日","月","火","水","木","金","土"];
+  const capH=(state.income||40)/5;
+  const todayOccs=state.items.filter(it=>occInMonth(it,today.getFullYear(),today.getMonth()).some(d=>sameDay(d,today)));
+  const usedH=todayOccs.reduce((a,it)=>a+(it.dur||60)/60,0)
+    +state.events.filter(ev=>ev.date&&sameDay(ymd(ev.date),today)).reduce((a,ev)=>a+(ev.dur||60)/60,0)
+    +state.tasks.filter(t=>t.date&&sameDay(ymd(t.date),today)&&!t.done).reduce((a,t)=>a+(t.dur||30)/60,0);
+  const surpH=capH-usedH;
+  const surpStyle=surpH>=0?`color:var(--plan)`:`color:var(--ember)`;
+  const surpTxt=surpH>=0?`残 ${surpH.toFixed(1)}h`:`超過 ${Math.abs(surpH).toFixed(1)}h`;
+  el.innerHTML=`
+    <span class="ht-date">${today.getMonth()+1}月${today.getDate()}日（${DOW[today.getDay()]}）</span>
+    <span class="ht-used">使用 ${usedH.toFixed(1)}h／上限 ${capH.toFixed(1)}h</span>
+    <span style="${surpStyle};font-size:12px;font-weight:700">${surpTxt}</span>
+    <span class="ht-link" onclick="document.querySelector('[data-view=today]').click()">今日の詳細 →</span>`;
+}
+
+function _renderCtxPager(){
+  const list=homeCtxList();
+  homeCtxIdx=Math.max(0,Math.min(homeCtxIdx,list.length-1));
+  const cur=list[homeCtxIdx];
+  state.activeContext=cur.id;
+  const nameEl=document.getElementById("home-ctx-name");if(nameEl)nameEl.textContent=cur.name;
+  const dotsEl=document.getElementById("home-ctx-dots");
+  if(dotsEl)dotsEl.innerHTML=list.map((c,i)=>`<span class="ctx-dot${i===homeCtxIdx?' on':''}" onclick="homeCtxIdx=${i};renderHome()"></span>`).join('');
+}
+
+function _renderHomeBalance(){
+  const barEl=document.getElementById("home-bar");const balEl=document.getElementById("home-bal-val");const lgEl=document.getElementById("home-legend");
+  if(!barEl)return;
+  const incomeMonth=state.income*WPM;
+  const f=sumKind(state.items,"fixed"),r=sumKind(state.items,"recurring"),g=sumKind(state.items,"growth"),pj=sumKind(state.items,"project"),tr=sumKind(state.items,"travel"),p=prepLoadThisMonth();
+  const used=f+r+g+pj+tr+p,bal=incomeMonth-used;
+  const total=Math.max(incomeMonth,used),pct=x=>total>0?x/total*100:0;
+  barEl.innerHTML="";
+  [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr],["prep",p],["balance",Math.max(bal,0)]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=pct(val)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});
+  if(balEl){balEl.innerHTML=`${bal>=0?"":"−"}${Math.abs(bal).toFixed(1)}<small> h/月</small>`;balEl.className="home-bal-val"+(bal<0?" neg":"");}
+  if(lgEl)lgEl.innerHTML=`<span><i class="i-fixed"></i>固定 <b class="v">${f.toFixed(1)}h</b></span><span><i class="i-recurring"></i>定期 <b class="v">${r.toFixed(1)}h</b></span><span><i class="i-growth"></i>成長 <b class="v">${g.toFixed(1)}h</b></span><span><i class="i-project"></i>目標 <b class="v">${pj.toFixed(1)}h</b></span><span><i class="i-travel"></i>移動 <b class="v">${tr.toFixed(1)}h</b></span><span><i class="i-balance"></i>残高 <b class="v">${Math.max(bal,0).toFixed(1)}h</b></span>`;
+}
+
+function _renderHomeMiniQuad(){
+  const el=document.getElementById("home-quad");if(!el)return;
+  const allT=[
+    ...state.items.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false,done:false})),
+    ...B().tasks.map(t=>({title:t.title,important:t.important,urgent:t.urgent,done:t.done||false}))
+  ].filter(t=>!t.done);
+  const q={1:[],2:[],3:[],4:[]};
+  allT.forEach(t=>{const qi=t.important?(t.urgent?1:2):(t.urgent?3:4);q[qi].push(t);});
+  const QDef=[{id:1,lbl:"Q1 重要×緊急",col:"var(--ember)"},{id:2,lbl:"Q2 重要×非緊急",col:"var(--fixed)"},{id:3,lbl:"Q3 緊急×非重要",col:"var(--active)"},{id:4,lbl:"Q4 その他",col:"var(--muted)"}];
+  el.innerHTML=QDef.map(({id,lbl,col})=>{
+    const items=q[id];
+    const sample=items.slice(0,3).map(t=>`<div>▸ ${esc(t.title)}</div>`).join('');
+    const more=items.length>3?`<div style="color:var(--faint)">…他${items.length-3}件</div>`:'';
+    return `<div class="hq-box" style="border-top-color:${col}"><div class="hq-label" style="color:${col}">${lbl}</div><div class="hq-count">${items.length}</div><div class="hq-tasks">${sample}${more}</div></div>`;
+  }).join('');
+}
+
+// ホームカレンダーナビ・文脈ページャのイベントは renderActive 後に登録
+function _wireHomeEvents(){
+  const elP=document.getElementById("home-cal-prev"),elN=document.getElementById("home-cal-next"),elT=document.getElementById("home-cal-today");
+  const elCP=document.getElementById("home-ctx-prev"),elCN=document.getElementById("home-ctx-next");
+  if(elP)elP.onclick=()=>{homeCalM--;if(homeCalM<0){homeCalM=11;homeCalY--;}renderHome();};
+  if(elN)elN.onclick=()=>{homeCalM++;if(homeCalM>11){homeCalM=0;homeCalY++;}renderHome();};
+  if(elT)elT.onclick=()=>{homeCalY=today.getFullYear();homeCalM=today.getMonth();renderHome();};
+  if(elCP)elCP.onclick=()=>{homeCtxIdx=Math.max(0,homeCtxIdx-1);renderHome();};
+  if(elCN)elCN.onclick=()=>{homeCtxIdx=Math.min(homeCtxList().length-1,homeCtxIdx+1);renderHome();};
 }
 function drawWeek(){document.getElementById("wk-note").innerHTML='<div class="muted-note">月表示のカレンダーをご利用ください（ドラッグ＆ドロップは月表示で動作します）。</div>';}
 document.getElementById("cal-prev").onclick=()=>{calM--;if(calM<0){calM=11;calY--;}renderCalendar();};
@@ -1550,6 +1748,18 @@ function openQuickAdd(dateStr){
   document.getElementById("qa-dur").value="60";
   document.getElementById("qa-important").checked=false;
   document.getElementById("qa-urgent").checked=false;
+  document.getElementById("qa-kind").value="";
+  document.getElementById("qa-vis").value="public";
+  document.getElementById("qa-details").removeAttribute("open");
+  // 文脈セレクト
+  const ctxSel=document.getElementById("qa-ctx");
+  ctxSel.innerHTML='<option value="">（未設定）</option>'+(state.contexts||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if(state.activeContext)ctxSel.value=state.activeContext||"";
+  // 種別変更で繰り返し欄を表示切替
+  document.getElementById("qa-kind").onchange=()=>{
+    const v=document.getElementById("qa-kind").value;
+    document.getElementById("qa-wrap-rep").style.display=(v&&v!=="")?"block":"none";
+  };
 
   document.getElementById("qa-save").onclick=()=>{
     const title=document.getElementById("qa-title").value.trim();
@@ -1558,12 +1768,28 @@ function openQuickAdd(dateStr){
     const dur=parseInt(document.getElementById("qa-dur").value)||60;
     const important=document.getElementById("qa-important").checked;
     const urgent=document.getElementById("qa-urgent").checked;
-    state.tasks.push({
-      id:uid(),title,date:dateStr,time,dur,
-      important,urgent,done:false,
-      visibility:"public",tags:[],estimate:null,actual:null
-    });
-    save();renderCalendar();
+    const kind=document.getElementById("qa-kind").value;
+    const vis=document.getElementById("qa-vis").value||"public";
+    const ctxId=document.getElementById("qa-ctx").value||null;
+    const rep=document.getElementById("qa-rep").value;
+
+    if(kind){
+      // 繰り返し予定 → state.items
+      const it={id:uid(),title,category:kind,time,dur,tags:[],estimate:null,actual:null,
+        visibility:vis,contextId:ctxId,important,urgent};
+      if(rep==="weekly"){it.rep="weekly";it.day=d.getDay();}
+      else if(rep==="monthly-date"){it.rep="monthly-date";it.mday=d.getDate();}
+      else{it.rep="once";it.date=dateStr;}
+      state.items.push(it);
+    }else{
+      // 一時タスク → state.tasks
+      state.tasks.push({id:uid(),title,date:dateStr,time,dur,important,urgent,done:false,
+        visibility:vis,tags:[],estimate:null,actual:null,contextId:ctxId});
+    }
+    save();
+    if(active==="home")renderHome();
+    else if(active==="calendar")renderCalendar();
+    else renderCalendar();
     document.getElementById("quickadd-dlg").close();
   };
 
@@ -1892,7 +2118,8 @@ function renderBookNav(){
 function renderActive(){
   document.querySelectorAll(".views button").forEach(b=>b.classList.toggle("on",b.dataset.view===active));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+active));
-  if(active==="today"){
+  if(active==="home"){renderHome();_wireHomeEvents();}
+  else if(active==="today"){
     document.getElementById("sw-today-btn").classList.toggle("on",todayMode==="today");
     document.getElementById("sw-week-btn").classList.toggle("on",todayMode==="week");
     document.getElementById("today-panel-icon").textContent=todayMode==="week"?"📅":"☀";
