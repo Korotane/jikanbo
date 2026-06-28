@@ -98,6 +98,10 @@ date / time … 日付・時刻
 ## UI言語・表記
 UIは日本語、ラベル・説明は敬語（丁寧語）で統一。
 
+## Git / GitHub 運用
+- `gh` CLI でログイン済み（Korotaneアカウント）。`git push origin main` を直接実行できる。
+- commit 後に「GitHubにあげて」と言われたら、確認なしで `git push origin main` まで実行してよい。
+
 ## 実装の進め方
 新しい要件に着手する前に、要件定義書と現行コード（jikanbo.html / clipboard-mock）を突き合わせ、解釈のズレを質問として挙げて認識合わせをすること。いきなり実装しない。推奨ビルド順は `jikanbo-START-HERE.md` および要件定義書 §11 を参照。
 
