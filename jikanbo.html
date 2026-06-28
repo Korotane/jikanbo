@@ -120,7 +120,7 @@
   .dlg-head h3{margin:0;font-size:15px;font-weight:600;}
   .dlg-x{border:none;background:none;font-size:20px;cursor:pointer;color:var(--muted);padding:2px 8px;border-radius:4px;}
   .dlg-x:hover{color:var(--ink);background:var(--surface-2);}
-  #dlg-body{padding:20px;}
+  #dlg-body,.dlg-body{padding:20px;}
   .dlg-field{margin-bottom:14px;}
   .dlg-field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;}
   .dlg-field input,.dlg-field select{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);color:var(--ink);}
@@ -480,6 +480,31 @@
   .home-bal-row { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
   .home-bal-val { font-size:22px; font-weight:700; font-family:var(--font-mono); }
   .home-bal-val.neg { color:var(--ember); }
+  /* クリップバー */
+  .cb-clip-bar { position:relative; height:20px; text-align:center; margin:0 0 4px; pointer-events:none; }
+  .cb-clip-bar::before { content:""; position:absolute; top:2px; left:50%; transform:translateX(-50%); width:88px; height:16px; background:linear-gradient(180deg,#CFCAC0,#A9A49A); border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.5); }
+  .cb-clip-bar::after { content:""; position:absolute; top:7px; left:50%; transform:translateX(-50%); width:48px; height:5px; background:rgba(0,0,0,.12); border-radius:3px; }
+  /* 今週・年間 2カラム */
+  .cb-wy-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cb-wy-sect h4 { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.04em; margin:0 0 6px; }
+  .cb-wy-row { display:flex; gap:6px; align-items:flex-start; font-size:12px; padding:4px 7px; background:var(--surface-2); border-radius:5px; margin-bottom:4px; }
+  .cb-wy-d { font-family:var(--font-mono); font-size:10px; color:var(--muted); flex:none; min-width:26px; }
+  .cb-wy-pin { width:7px; height:7px; border-radius:50%; flex:none; margin-top:3px; flex-shrink:0; }
+  .cb-wy-t { flex:1; line-height:1.4; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* 文脈管理ボタン */
+  .ctx-manage-btn { font-size:11px; color:var(--plan); background:none; border:1px dashed var(--plan); border-radius:5px; padding:2px 8px; cursor:pointer; display:block; margin:2px auto 0; }
+  /* ページコンテンツのスライドアニメーション */
+  @keyframes cbSlideRight { from { opacity:.3; transform:translateX(18px); } to { opacity:1; transform:none; } }
+  @keyframes cbSlideLeft { from { opacity:.3; transform:translateX(-18px); } to { opacity:1; transform:none; } }
+  .slide-right { animation:cbSlideRight .22s ease; }
+  .slide-left { animation:cbSlideLeft .22s ease; }
+  /* 文脈管理ダイアログ */
+  .ctx-mgmt-list-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .ctx-mgmt-list-row:last-child { border-bottom:none; }
+  .ctx-color-dot { width:11px; height:11px; border-radius:50%; flex:none; }
+  .ctx-mgmt-name { flex:1; font-size:13px; font-weight:600; }
+  .ctx-mgmt-type-lbl { font-size:11px; color:var(--muted); }
+  @media(max-width:500px){ .cb-wy-cols { grid-template-columns:1fr; } }
 
   /* quick-add 詳細設定 */
   .qa-details { border:none; padding:0; margin:0; }
@@ -513,8 +538,9 @@
     </div>
   </div>
 
-  <!-- ホーム：全体俯瞰ダッシュボード -->
+  <!-- ホーム：クリップボード型俯瞰ダッシュボード -->
   <div class="view on" id="v-home">
+    <div class="cb-clip-bar"></div>
     <div class="home-today-strip" id="home-today-strip"></div>
     <div class="ctx-pager" id="home-ctx-pager">
       <button class="ctx-arrow" id="home-ctx-prev">◀</button>
@@ -524,37 +550,82 @@
       </div>
       <button class="ctx-arrow" id="home-ctx-next">▶</button>
     </div>
-    <section class="panel" style="margin-top:0;border-radius:0">
-      <div class="panel-head">
-        <h2 id="home-cal-label"></h2>
-        <div style="margin-left:auto;display:flex;gap:6px">
-          <button class="vsw" id="home-cal-prev">◀</button>
-          <button class="vsw" id="home-cal-today">今月</button>
-          <button class="vsw" id="home-cal-next">▶</button>
+    <button class="ctx-manage-btn" id="home-ctx-manage">文脈を管理</button>
+    <div id="home-page-content">
+      <section class="panel" style="margin-top:0;border-radius:0">
+        <div class="panel-head">
+          <h2 id="home-cal-label"></h2>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="vsw" id="home-cal-prev">◀</button>
+            <button class="vsw" id="home-cal-today">今月</button>
+            <button class="vsw" id="home-cal-next">▶</button>
+          </div>
         </div>
-      </div>
-      <div class="panel-body" style="padding:0">
-        <div class="monthgrid cal-grid-sm" id="home-monthgrid"></div>
-      </div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><h2>時間収支（月）</h2><span class="hint">月間の可処分残高</span></div>
-      <div class="panel-body">
-        <div class="home-bal-row">
-          <span id="home-bal-lbl" style="font-size:12px;color:var(--muted)">可処分残高</span>
-          <span class="home-bal-val" id="home-bal-val">—</span>
+        <div class="panel-body" style="padding:0">
+          <div class="monthgrid cal-grid-sm" id="home-monthgrid"></div>
         </div>
-        <div class="bar" id="home-bar"></div>
-        <div class="legend" id="home-legend"></div>
-      </div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><h2>4象限（タスク）</h2><span class="hint">4象限タブで詳細を確認・操作</span></div>
-      <div class="panel-body">
-        <div class="home-quad-mini" id="home-quad"></div>
-      </div>
-    </section>
+      </section>
+      <section class="panel">
+        <div class="panel-body">
+          <div class="cb-wy-cols">
+            <div class="cb-wy-sect"><h4>今週</h4><div id="home-week-list"></div></div>
+            <div class="cb-wy-sect"><h4>年間・締切</h4><div id="home-year-list"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>時間収支（月）</h2><span class="hint">月間の可処分残高</span></div>
+        <div class="panel-body">
+          <div class="home-bal-row">
+            <span id="home-bal-lbl" style="font-size:12px;color:var(--muted)">可処分残高</span>
+            <span class="home-bal-val" id="home-bal-val">—</span>
+          </div>
+          <div class="bar" id="home-bar"></div>
+          <div class="legend" id="home-legend"></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>4象限（タスク）</h2><span class="hint">4象限タブで詳細を確認・操作</span></div>
+        <div class="panel-body">
+          <div class="home-quad-mini" id="home-quad"></div>
+        </div>
+      </section>
+    </div>
   </div>
+
+  <!-- 文脈管理ダイアログ -->
+  <dialog id="ctx-mgmt-dlg" class="dlg">
+    <div class="dlg-head"><h3>文脈を管理</h3><button id="ctx-mgmt-close" class="dlg-x">×</button></div>
+    <div class="dlg-body" id="ctx-mgmt-list"></div>
+    <div class="dlg-footer" style="display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--line)">
+      <button id="ctx-mgmt-add" class="btn plan" style="flex:1">＋ 文脈を追加</button>
+      <button id="ctx-mgmt-done" class="btn ghost">閉じる</button>
+    </div>
+  </dialog>
+
+  <!-- 文脈の追加・編集フォームダイアログ -->
+  <dialog id="ctx-form-dlg" class="dlg">
+    <div class="dlg-head"><h3 id="ctx-form-title">文脈を追加</h3><button id="ctx-form-close" class="dlg-x">×</button></div>
+    <div class="dlg-body">
+      <div class="dlg-field"><label>名前</label><input id="ctx-form-name" type="text" placeholder="顧客A大学、プロジェクトX…" style="width:100%"></div>
+      <div class="dlg-field"><label>種別</label>
+        <select id="ctx-form-type" style="width:100%">
+          <option value="customer">顧客</option>
+          <option value="project">プロジェクト</option>
+          <option value="work">仕事</option>
+          <option value="private">プライベート</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div class="dlg-field"><label>カラー</label>
+        <div id="ctx-form-colors" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="dlg-footer" style="display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--line)">
+      <button id="ctx-form-ok" class="btn plan" style="flex:1">保存</button>
+      <button id="ctx-form-cancel" class="btn ghost">キャンセル</button>
+    </div>
+  </dialog>
 
   <div class="view" id="v-today">
     <section class="panel">
@@ -1736,38 +1807,56 @@ function drawMonth(){
 
 /* ====== ホームタブ ====== */
 let homeCalY=today.getFullYear(),homeCalM=today.getMonth(),homeCtxIdx=0;
+const CTX_TYPE_LABELS={customer:"顧客",project:"プロジェクト",work:"仕事",private:"プライベート",other:"その他"};
+const CTX_PRESET_COLORS=["#5B7186","#A9854F","#79906E","#A3604C","#6E6E89","#B08A4A","#7A8E98","#9E7B82","#7B9E8A","#888888"];
 
-// 顧客キー一覧（state.itemsから収集）
+// 文脈リスト（state.contextsを正本とする）
 function homeCtxList(){
-  const keys=[...new Set(state.items.map(custKey))].sort((a,b)=>a.localeCompare(b,'ja'));
-  return [{id:null,name:"全予定"},...keys.map(k=>({id:k,name:k}))];
+  return [{id:null,name:"全予定"},...(state.contexts||[])];
 }
-function homeCurrentCustFilter(){
+function homeCurrentCtx(){
   const list=homeCtxList();
   homeCtxIdx=Math.max(0,Math.min(homeCtxIdx,list.length-1));
-  return list[homeCtxIdx].id; // null = 全予定
+  return list[homeCtxIdx];
 }
 
-// 顧客フィルタ済みのカレンダーエントリ
-function homeMonthEntries(year,month,custFilter){
-  const filtItems=custFilter?state.items.filter(it=>custKey(it)===custFilter):state.items;
+// 予定がこの文脈にマッチするか（後方互換フィルタ）
+function itemMatchesCtx(it,ctx){
+  if(!ctx||!ctx.id) return true;
+  if(it.contextId) return it.contextId===ctx.id;
+  return custKey(it)===ctx.name;
+}
+
+// 指定範囲に予定が発生する日を返す（週表示用）
+function occInRange(it,startDate,endDate){
+  const result=[];
+  const months=new Set([`${startDate.getFullYear()}-${startDate.getMonth()}`,`${endDate.getFullYear()}-${endDate.getMonth()}`]);
+  months.forEach(key=>{const[y,m]=key.split('-').map(Number);occInMonth(it,y,m).forEach(dt=>{if(dt>=startDate&&dt<=endDate)result.push(dt);});});
+  return result;
+}
+
+// 文脈フィルタ済みのカレンダーエントリ
+function homeMonthEntries(year,month,ctx){
+  const filtItems=state.items.filter(it=>itemMatchesCtx(it,ctx));
   const out=[];
   filtItems.forEach(it=>{if(!it.rep)return;occInMonth(it,year,month).forEach(dt=>out.push({id:it.id,date:dt,label:it.title,kind:it.category,time:it.time}));});
-  if(!custFilter){
-    state.events.forEach(ev=>{const d=ymd(ev.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:ev.id,date:d,label:ev.title,kind:"anchor"});ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due.getFullYear()===year&&due.getMonth()===month)out.push({id:s.id,date:due,label:s.title,kind:"prep",evId:ev.id});});});
-    state.tasks.filter(t=>t.date&&!t.done).forEach(t=>{const d=ymd(t.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:t.id,date:d,label:t.title,kind:"manual"});});
-  }
+  const evSrc=ctx&&ctx.id?state.events.filter(e=>e.contextId===ctx.id):state.events;
+  evSrc.forEach(ev=>{const d=ymd(ev.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:ev.id,date:d,label:ev.title,kind:"anchor"});ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due.getFullYear()===year&&due.getMonth()===month)out.push({id:s.id,date:due,label:s.title,kind:"prep",evId:ev.id});});});
+  const tSrc=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id):state.tasks;
+  tSrc.filter(t=>t.date&&!t.done).forEach(t=>{const d=ymd(t.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:t.id,date:d,label:t.title,kind:"manual"});});
   return out;
 }
 
 function renderHome(){
   _renderHomeTodayStrip();
   _renderCtxPager();
+  const ctx=homeCurrentCtx();
   const lbl=document.getElementById("home-cal-label");if(lbl)lbl.textContent=`${homeCalY}年 ${homeCalM+1}月`;
   const hg=document.getElementById("home-monthgrid");
-  if(hg)drawMonthGrid(hg,homeCalY,homeCalM,homeMonthEntries(homeCalY,homeCalM,homeCurrentCustFilter()));
-  _renderHomeBalance();
-  _renderHomeMiniQuad();
+  if(hg)drawMonthGrid(hg,homeCalY,homeCalM,homeMonthEntries(homeCalY,homeCalM,ctx));
+  _renderHomeWeekYear(ctx);
+  _renderHomeBalance(ctx);
+  _renderHomeMiniQuad(ctx);
 }
 
 function _renderHomeTodayStrip(){
@@ -1788,22 +1877,35 @@ function _renderCtxPager(){
   const list=homeCtxList();
   homeCtxIdx=Math.max(0,Math.min(homeCtxIdx,list.length-1));
   const cur=list[homeCtxIdx];
-  const nameEl=document.getElementById("home-ctx-name");if(nameEl)nameEl.textContent=cur.name;
+  const nameEl=document.getElementById("home-ctx-name");
+  if(nameEl){
+    nameEl.textContent=cur.name;
+    nameEl.style.color=(cur.color&&homeCtxIdx>0)?cur.color:"";
+  }
   const dotsEl=document.getElementById("home-ctx-dots");
-  if(dotsEl)dotsEl.innerHTML=list.map((c,i)=>`<span class="ctx-dot${i===homeCtxIdx?' on':''}" onclick="homeCtxIdx=${i};renderHome()"></span>`).join('');
+  if(dotsEl)dotsEl.innerHTML=list.map((c,i)=>{
+    const col=(c.color&&i>0)?c.color:"";
+    const style=col&&i===homeCtxIdx?`background:${col};border-radius:4px;`:"";
+    return `<span class="ctx-dot${i===homeCtxIdx?' on':''}" style="${style}" onclick="homeCtxIdx=${i};_cbSlide('${i>homeCtxIdx?'right':'left'}');renderHome()"></span>`;
+  }).join('');
+}
+function _cbSlide(dir){
+  const pc=document.getElementById("home-page-content");if(!pc)return;
+  pc.classList.remove("slide-right","slide-left");void pc.offsetWidth;
+  pc.classList.add(dir==="right"?"slide-right":"slide-left");
 }
 
-function _renderHomeBalance(){
+function _renderHomeBalance(ctx){
   const barEl=document.getElementById("home-bar");const balEl=document.getElementById("home-bal-val");const lgEl=document.getElementById("home-legend");const lblEl=document.getElementById("home-bal-lbl");
   if(!barEl)return;
-  const custFilter=homeCurrentCustFilter();
-  const filtItems=custFilter?state.items.filter(it=>custKey(it)===custFilter):state.items;
+  if(!ctx)ctx=homeCurrentCtx();
+  const filtItems=state.items.filter(it=>itemMatchesCtx(it,ctx));
   const f=sumKind(filtItems,"fixed"),r=sumKind(filtItems,"recurring"),g=sumKind(filtItems,"growth"),pj=sumKind(filtItems,"project"),tr=sumKind(filtItems,"travel");
   barEl.innerHTML="";
-  if(custFilter){
-    // 顧客別：収入比較なし、合計時間を表示
+  if(ctx&&ctx.id){
+    // 特定文脈：収入比較なし、合計時間を表示
     const total=f+r+g+pj+tr;
-    if(lblEl)lblEl.textContent="月間合計（この顧客）";
+    if(lblEl)lblEl.textContent="月間合計（この文脈）";
     if(balEl){balEl.innerHTML=`${total.toFixed(1)}<small> h/月</small>`;balEl.className="home-bal-val";}
     const max=Math.max(total,0.1);
     [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=(val/max*100)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});
@@ -1820,18 +1922,15 @@ function _renderHomeBalance(){
   }
 }
 
-function _renderHomeMiniQuad(){
+function _renderHomeMiniQuad(ctx){
   const el=document.getElementById("home-quad");if(!el)return;
-  const custFilter=homeCurrentCustFilter();
-  let allT;
-  if(custFilter){
-    allT=state.items.filter(it=>custKey(it)===custFilter).map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false}));
-  }else{
-    allT=[
-      ...state.items.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false})),
-      ...B().tasks.filter(t=>!t.done).map(t=>({title:t.title,important:t.important,urgent:t.urgent}))
-    ];
-  }
+  if(!ctx)ctx=homeCurrentCtx();
+  const filtItems=state.items.filter(it=>itemMatchesCtx(it,ctx));
+  const filtTasks=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id&&!t.done):B().tasks.filter(t=>!t.done);
+  const allT=[
+    ...filtItems.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false})),
+    ...filtTasks.map(t=>({title:t.title,important:t.important,urgent:t.urgent}))
+  ];
   const q={1:[],2:[],3:[],4:[]};
   allT.forEach(t=>{const qi=t.important?(t.urgent?1:2):(t.urgent?3:4);q[qi].push(t);});
   const QDef=[{id:1,lbl:"A 重要で緊急",col:"var(--ember)"},{id:2,lbl:"B 重要・計画",col:"var(--fixed)"},{id:3,lbl:"C 緊急・非重要",col:"var(--active)"},{id:4,lbl:"D どちらでもない",col:"var(--muted)"}];
@@ -1843,15 +1942,139 @@ function _renderHomeMiniQuad(){
   }).join('');
 }
 
-// ホームカレンダーナビ・文脈ページャのイベントは renderActive 後に登録
+// 今週・年間ミニパネル
+const _KIND_COL={fixed:"var(--fixed)",recurring:"var(--plan)",growth:"var(--growth)",project:"var(--project)",travel:"var(--travel)",invest:"var(--invest)",manual:"var(--muted)"};
+function _renderHomeWeekYear(ctx){
+  if(!ctx)ctx=homeCurrentCtx();
+  const DOW=["日","月","火","水","木","金","土"];
+  const pad2=n=>String(n).padStart(2,"0");
+  const weekEl=document.getElementById("home-week-list");
+  const yearEl=document.getElementById("home-year-list");
+  if(!weekEl||!yearEl)return;
+
+  // 今週（月〜日）
+  const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+
+  const weekItems=[];
+  state.items.filter(it=>itemMatchesCtx(it,ctx)).forEach(it=>{
+    occInRange(it,mon,sun).forEach(dt=>weekItems.push({date:dt,title:it.title,kind:it.category}));
+  });
+  const tSrc=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id):state.tasks;
+  tSrc.filter(t=>!t.done&&t.date).forEach(t=>{
+    const d=ymd(t.date);if(d>=mon&&d<=sun)weekItems.push({date:d,title:t.title,kind:"manual"});
+  });
+  weekItems.sort((a,b)=>a.date-b.date);
+  weekEl.innerHTML=weekItems.length
+    ? weekItems.slice(0,7).map(it=>`<div class="cb-wy-row"><span class="cb-wy-d">${DOW[it.date.getDay()]}</span><span class="cb-wy-pin" style="background:${_KIND_COL[it.kind]||'var(--muted)'}"></span><span class="cb-wy-t">${esc(it.title)}</span></div>`).join('')
+    : '<div style="font-size:11px;color:var(--faint)">今週の予定なし</div>';
+
+  // 年間・締切（今日以降の直近イベント）
+  const evSrc=ctx&&ctx.id?state.events.filter(e=>e.contextId===ctx.id):state.events;
+  const upcoming=[];
+  evSrc.forEach(ev=>{
+    const d=ymd(ev.date);if(d>=today)upcoming.push({date:d,title:ev.title,kind:"anchor"});
+    ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due>=today)upcoming.push({date:due,title:s.title,kind:"prep"});});
+  });
+  upcoming.sort((a,b)=>a.date-b.date);
+  yearEl.innerHTML=upcoming.length
+    ? upcoming.slice(0,6).map(it=>`<div class="cb-wy-row"><span class="cb-wy-d">${it.date.getMonth()+1}/${pad2(it.date.getDate())}</span><span class="cb-wy-pin" style="background:${it.kind==='anchor'?'var(--ember)':'var(--plan)'}"></span><span class="cb-wy-t">${esc(it.title)}</span></div>`).join('')
+    : '<div style="font-size:11px;color:var(--faint)">今後の締切なし</div>';
+}
+
+// ── 文脈管理 ──
+let _ctxFormEditId=null;
+function openCtxMgmt(){
+  const dlg=document.getElementById("ctx-mgmt-dlg");if(!dlg)return;
+  _renderCtxMgmt();dlg.showModal();
+}
+function _renderCtxMgmt(){
+  const list=document.getElementById("ctx-mgmt-list");if(!list)return;
+  list.innerHTML=(state.contexts||[]).length
+    ? (state.contexts||[]).map(ctx=>`<div class="ctx-mgmt-list-row"><div class="ctx-color-dot" style="background:${ctx.color||'var(--muted)'}"></div><div class="ctx-mgmt-name">${esc(ctx.name)}</div><div class="ctx-mgmt-type-lbl">${CTX_TYPE_LABELS[ctx.type]||ctx.type||""}</div><button class="mini-edit" onclick="openCtxForm('${ctx.id}')">✎</button><button class="del" onclick="deleteCtx('${ctx.id}')">×</button></div>`).join('')
+    : '<div style="color:var(--faint);font-size:12px;padding:8px 0">文脈がありません。追加してください。</div>';
+}
+function openCtxForm(ctxId){
+  const dlg=document.getElementById("ctx-form-dlg");if(!dlg)return;
+  _ctxFormEditId=ctxId||null;
+  const ctx=ctxId?(state.contexts||[]).find(c=>c.id===ctxId):null;
+  document.getElementById("ctx-form-title").textContent=ctx?"文脈を編集":"文脈を追加";
+  document.getElementById("ctx-form-name").value=ctx?ctx.name:"";
+  document.getElementById("ctx-form-type").value=ctx&&ctx.type?ctx.type:"customer";
+  const colEl=document.getElementById("ctx-form-colors");
+  const selCol=ctx&&ctx.color?ctx.color:CTX_PRESET_COLORS[0];
+  colEl.innerHTML=CTX_PRESET_COLORS.map(c=>`<span onclick="window._selCtxCol='${c}';document.querySelectorAll('#ctx-form-colors span').forEach(s=>s.style.outline='');this.style.outline='2px solid var(--plan)'" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;display:inline-block;${c===selCol?'outline:2px solid var(--plan)':''};outline-offset:2px"></span>`).join('');
+  window._selCtxCol=selCol;
+  dlg.showModal();
+}
+function saveCtxForm(){
+  const name=document.getElementById("ctx-form-name").value.trim();
+  if(!name)return;
+  const type=document.getElementById("ctx-form-type").value;
+  const color=window._selCtxCol||CTX_PRESET_COLORS[0];
+  if(_ctxFormEditId){
+    const ctx=(state.contexts||[]).find(c=>c.id===_ctxFormEditId);
+    if(ctx){ctx.name=name;ctx.type=type;ctx.color=color;}
+  }else{
+    if(!state.contexts)state.contexts=[];
+    state.contexts.push({id:uid(),name,type,color});
+  }
+  save();renderBookNav();
+  document.getElementById("ctx-form-dlg").close();
+  _renderCtxMgmt();
+  renderHome();
+}
+function deleteCtx(ctxId){
+  if(!confirm("この文脈を削除しますか？\n（文脈に紐づいたタスク・マイルストーンのcontextIdはクリアされます）"))return;
+  state.contexts=(state.contexts||[]).filter(c=>c.id!==ctxId);
+  state.tasks.forEach(t=>{if(t.contextId===ctxId)t.contextId=null;});
+  state.events.forEach(e=>{if(e.contextId===ctxId)e.contextId=null;});
+  if(state.activeContext===ctxId)state.activeContext=null;
+  homeCtxIdx=0;
+  save();renderBookNav();_renderCtxMgmt();renderHome();
+}
+
+// ホームカレンダーナビ・文脈ページャ・スワイプのイベントは renderActive 後に登録
 function _wireHomeEvents(){
   const elP=document.getElementById("home-cal-prev"),elN=document.getElementById("home-cal-next"),elT=document.getElementById("home-cal-today");
   const elCP=document.getElementById("home-ctx-prev"),elCN=document.getElementById("home-ctx-next");
+  const elMg=document.getElementById("home-ctx-manage");
   if(elP)elP.onclick=()=>{homeCalM--;if(homeCalM<0){homeCalM=11;homeCalY--;}renderHome();};
   if(elN)elN.onclick=()=>{homeCalM++;if(homeCalM>11){homeCalM=0;homeCalY++;}renderHome();};
   if(elT)elT.onclick=()=>{homeCalY=today.getFullYear();homeCalM=today.getMonth();renderHome();};
-  if(elCP)elCP.onclick=()=>{homeCtxIdx=Math.max(0,homeCtxIdx-1);renderHome();};
-  if(elCN)elCN.onclick=()=>{homeCtxIdx=Math.min(homeCtxList().length-1,homeCtxIdx+1);renderHome();};
+  if(elCP)elCP.onclick=()=>{const prev=homeCtxIdx;homeCtxIdx=Math.max(0,homeCtxIdx-1);if(homeCtxIdx!==prev){_cbSlide("left");renderHome();}};
+  if(elCN)elCN.onclick=()=>{const prev=homeCtxIdx;homeCtxIdx=Math.min(homeCtxList().length-1,homeCtxIdx+1);if(homeCtxIdx!==prev){_cbSlide("right");renderHome();}};
+  if(elMg)elMg.onclick=openCtxMgmt;
+  // スワイプ（Pointer Events）
+  const homeView=document.getElementById("v-home");
+  if(homeView&&!homeView._swipeWired){
+    homeView._swipeWired=true;
+    let sx=null;
+    homeView.addEventListener("pointerdown",e=>{sx=e.clientX;});
+    homeView.addEventListener("pointerup",e=>{
+      if(sx===null)return;const dx=e.clientX-sx;sx=null;
+      if(Math.abs(dx)<50)return;
+      const dir=dx<0?1:-1;
+      const prev=homeCtxIdx;
+      homeCtxIdx=Math.max(0,Math.min(homeCtxList().length-1,homeCtxIdx+dir));
+      if(homeCtxIdx!==prev){_cbSlide(dx<0?"right":"left");renderHome();}
+    });
+  }
+  // 文脈管理ダイアログのボタン配線
+  const mgDlg=document.getElementById("ctx-mgmt-dlg");
+  const fmDlg=document.getElementById("ctx-form-dlg");
+  if(mgDlg&&!mgDlg._wired){
+    mgDlg._wired=true;
+    document.getElementById("ctx-mgmt-close").onclick=()=>mgDlg.close();
+    document.getElementById("ctx-mgmt-done").onclick=()=>mgDlg.close();
+    document.getElementById("ctx-mgmt-add").onclick=()=>openCtxForm(null);
+  }
+  if(fmDlg&&!fmDlg._wired){
+    fmDlg._wired=true;
+    document.getElementById("ctx-form-close").onclick=()=>fmDlg.close();
+    document.getElementById("ctx-form-cancel").onclick=()=>fmDlg.close();
+    document.getElementById("ctx-form-ok").onclick=saveCtxForm;
+  }
 }
 function drawWeek(){document.getElementById("wk-note").innerHTML='<div class="muted-note">月表示のカレンダーをご利用ください（ドラッグ＆ドロップは月表示で動作します）。</div>';}
 document.getElementById("cal-prev").onclick=()=>{calM--;if(calM<0){calM=11;calY--;}renderCalendar();};
