@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(open *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(node --check /Users/yumakondo/jikanbo/jikanbo.html)",
+      "Bash(python3 *)",
+      "Bash(git init *)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'CLAUDE.md: gh CLI ログイン済み・push自動化の運用ルールを追記 *)",
+      "Bash(git commit -m 'ドキュメント一式を現在の実装状態に更新 *)",
+      "Bash(git commit -m '予定フォーム・編集ダイアログの繰り返し選択肢を拡張 *)"
+    ]
+  }
+}
