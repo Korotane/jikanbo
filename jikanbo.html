@@ -237,12 +237,16 @@
   .cal-toggle button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
   .monthgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .monthgrid .dow { font-size: 12px; color: var(--muted); text-align: center; padding: 8px 0; font-weight: 600; background: var(--surface); }
-  .daycell { min-height: 96px; background: var(--surface); padding: 6px; position: relative; transition: background 0.15s; }
+  .daycell { min-height: 96px; background: var(--surface); padding: 6px; position: relative; transition: background 0.15s; cursor: pointer; }
+  .daycell:hover { background: color-mix(in srgb, var(--plan) 5%, var(--surface)); }
   .daycell.other { background: #F2F0EB; opacity: 0.65; }
   .daycell.today { background: #F1EDE4; }
   .daycell.today .daynum { color: var(--ember); font-weight: 700; }
+  .daycell.today:hover { background: color-mix(in srgb, var(--plan) 5%, #F1EDE4); }
   .daycell.drop-hot { background: var(--ember-soft); box-shadow: inset 0 0 0 2px var(--ember); }
   .daynum { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+  .daycell:hover .daynum { color: var(--plan); }
+  .daycell .ev { cursor: default; }
   .ev { font-size: 10px; font-weight: 500; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 4px; padding: 2px 6px; margin-bottom: 2px; color: #fff; }
   .ev.work { background: var(--work); } .ev.priv { background: var(--priv); }
   .ev.c-fixed    { background: var(--fixed); }
@@ -699,6 +703,37 @@
 
   <footer>時間簿 — データはこのブラウザ内（localStorage）にのみ保存されます。</footer>
 </div>
+
+<dialog id="quickadd-dlg" class="dlg">
+  <div class="dlg-head"><h3 id="qa-date-label"></h3><button class="dlg-x" id="qa-close">×</button></div>
+  <div style="padding:16px 20px 0">
+    <div class="dlg-field">
+      <label>タイトル</label>
+      <input id="qa-title" type="text" placeholder="予定の名前" autocomplete="off">
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="dlg-field" style="flex:1">
+        <label>時刻</label>
+        <input id="qa-time" type="time" value="09:00">
+      </div>
+      <div class="dlg-field" style="flex:1">
+        <label>所要時間（分）</label>
+        <input id="qa-dur" type="number" min="5" step="5" value="60">
+      </div>
+    </div>
+    <div class="dlg-field">
+      <label>重要度・緊急度</label>
+      <div style="display:flex;gap:16px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:normal;color:var(--ink)"><input type="checkbox" id="qa-important"> ★ 重要</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:normal;color:var(--ink)"><input type="checkbox" id="qa-urgent"> ⚡ 緊急</label>
+      </div>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn ghost" id="qa-cancel">キャンセル</button>
+    <button class="btn plan" id="qa-save">追加</button>
+  </div>
+</dialog>
 
 <dialog id="edit-dlg" class="dlg">
   <div class="dlg-head"><h3 id="dlg-ttl">編集</h3><button class="dlg-x" id="dlg-close">×</button></div>
@@ -1474,6 +1509,7 @@ function drawMonth(){
     if(dt.getMonth()!==calM)cell.classList.add("other");
     if(sameDay(dt,today))cell.classList.add("today");
     const num=document.createElement("div");num.className="daynum";num.textContent=dt.getDate();cell.appendChild(num);
+    cell.onclick=e=>{if(!e.target.closest(".ev")&&!e.target.closest(".drag-handle"))openQuickAdd(dateStr);};
     const list=(byDay[dateStr]||[]).slice().sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
     list.forEach(e=>{
       const el=document.createElement("div");
@@ -1495,6 +1531,45 @@ document.getElementById("cal-next").onclick=()=>{calM++;if(calM>11){calM=0;calY+
 document.getElementById("cal-today").onclick=()=>{calY=today.getFullYear();calM=today.getMonth();renderCalendar();};
 document.getElementById("ct-month").onclick=()=>{calMode="month";renderCalendar();};
 document.getElementById("ct-week").onclick=()=>{calMode="week";renderCalendar();};
+
+/* ====== カレンダーから直接追加 ====== */
+(()=>{
+  const dlg=document.getElementById("quickadd-dlg");
+  document.getElementById("qa-close").onclick=()=>dlg.close();
+  document.getElementById("qa-cancel").onclick=()=>dlg.close();
+  dlg.addEventListener("keydown",e=>{if(e.key==="Escape")dlg.close();});
+})();
+
+function openQuickAdd(dateStr){
+  const d=ymd(dateStr);
+  const DOW=["日","月","火","水","木","金","土"];
+  document.getElementById("qa-date-label").textContent=
+    `${d.getMonth()+1}月${d.getDate()}日（${DOW[d.getDay()]}）に追加`;
+  document.getElementById("qa-title").value="";
+  document.getElementById("qa-time").value="09:00";
+  document.getElementById("qa-dur").value="60";
+  document.getElementById("qa-important").checked=false;
+  document.getElementById("qa-urgent").checked=false;
+
+  document.getElementById("qa-save").onclick=()=>{
+    const title=document.getElementById("qa-title").value.trim();
+    if(!title){document.getElementById("qa-title").focus();return;}
+    const time=document.getElementById("qa-time").value;
+    const dur=parseInt(document.getElementById("qa-dur").value)||60;
+    const important=document.getElementById("qa-important").checked;
+    const urgent=document.getElementById("qa-urgent").checked;
+    state.tasks.push({
+      id:uid(),title,date:dateStr,time,dur,
+      important,urgent,done:false,
+      visibility:"public",tags:[],estimate:null,actual:null
+    });
+    save();renderCalendar();
+    document.getElementById("quickadd-dlg").close();
+  };
+
+  document.getElementById("quickadd-dlg").showModal();
+  setTimeout(()=>document.getElementById("qa-title").focus(),50);
+}
 
 /* ====== 4象限 ====== */
 function isUrgent(due){if(!due)return false;return (due-today)/DAY<=14;}
