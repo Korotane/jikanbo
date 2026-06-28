@@ -425,6 +425,18 @@
   .today-dur { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
   .today-src { font-size: 11px; color: var(--muted); }
   .today-empty { color: var(--faint); font-size: 13px; padding: 12px 4px; }
+  /* 手順書（チェックリスト） */
+  .cl-badge { font-size: 10px; color: var(--plan); background: color-mix(in srgb,var(--plan) 12%,transparent); border-radius: 4px; padding: 1px 5px; margin-left: 2px; cursor: pointer; }
+  .today-cl { margin: 4px 0 4px 32px; display: none; }
+  .cl-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; color: var(--ink); cursor: pointer; user-select: none; }
+  .cl-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--plan); flex-shrink: 0; }
+  .cl-row.done span { text-decoration: line-through; color: var(--muted); }
+  .cl-toggle { font-size: 11px; color: var(--plan); background: none; border: none; cursor: pointer; padding: 0; margin-left: 32px; }
+  .cl-step { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .cl-step .cl-num { font-size: 11px; color: var(--muted); width: 18px; text-align: right; flex-shrink: 0; }
+  .cl-step .cl-text { flex: 1; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .cl-step .cl-del { font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+  .cl-add-btn { font-size: 12px; color: var(--plan); background: none; border: 1px dashed color-mix(in srgb,var(--plan) 40%,transparent); border-radius: 6px; padding: 5px 12px; cursor: pointer; width: 100%; margin-top: 4px; }
   .week-day-block { margin-bottom: 18px; }
   .week-day-hd { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; padding: 5px 0; border-bottom: 1px solid var(--line-strong); margin-bottom: 4px; }
   .week-day-hd .wd-name { width: 28px; color: var(--muted); }
@@ -491,7 +503,6 @@
       <button data-view="home" class="on">ホーム</button>
       <button data-view="today">今日</button>
       <button data-view="schedule">予定</button>
-      <button data-view="monthly">月間</button>
       <button data-view="annual">年間</button>
       <button data-view="calendar">カレンダー</button>
       <button data-view="quad">4象限</button>
@@ -603,6 +614,7 @@
           <div class="field c3"><label for="f-time">開始時刻</label><input id="f-time" type="time" value="09:00"></div>
           <div class="field c3"><label for="f-dur">所要時間(分)</label><input id="f-dur" type="number" min="5" step="5" value="60"></div>
           <div class="field c3" id="wrap-monthly" style="display:none;"><label for="f-monthly">月あたり(時間)</label><input id="f-monthly" type="number" min="1" step="1" value="8"></div>
+          <div class="field c12"><label for="f-memo">メモ・備考</label><input id="f-memo" type="text" placeholder="補足・URL・担当者など" style="width:100%;box-sizing:border-box"></div>
           <div class="field c3"><label for="f-vis">公開レベル</label><select id="f-vis"><option value="public">🌐 公開</option><option value="busy">◐ 多忙のみ</option><option value="private">● 非公開</option></select></div>
           <div class="field c3"><label>ガントチャート</label><div class="view-sw" style="margin-top:2px;"><button class="vsw on" id="gantt-off">なし</button><button class="vsw" id="gantt-on">組む</button></div></div>
           <div class="field c4" id="wrap-gantt" style="display:none;"><label for="f-gantt-date">ゴール日（締切・当日）</label><input id="f-gantt-date" type="date"></div>
@@ -634,28 +646,6 @@
   </div>
 
   <!-- 月間タブ：時間収支サマリー + Q3閾値設定 -->
-  <div class="view" id="v-monthly">
-    <section class="panel">
-      <div class="panel-head"><span class="n">設定</span><h2>可処分時間の設定</h2><span class="hint">睡眠・生活を除いた稼働可能時間</span></div>
-      <div class="panel-body"><div class="income"><label>1週間あたり</label><input id="income" type="number" min="0" step="1" value="40" style="width:100px;"> <span>時間</span><span class="calc" id="income-calc"></span></div></div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><span class="n">月間</span><h2>時間収支（月）</h2><span class="hint">収入 −（固定＋定期＋成長＋目標＋移動＋準備）＝残高</span></div>
-      <div class="panel-body">
-        <div class="summary">
-          <div class="bigbal"><div class="lab">可処分残高 / バッファ</div><div class="val" id="bal-val">—</div><div class="note" id="bal-note"></div></div>
-          <div><div class="bar" id="bar"></div>
-            <div class="legend"><span><i class="i-fixed"></i>固定 <b class="v" id="lg-fixed">0h</b></span><span><i class="i-recurring"></i>定期 <b class="v" id="lg-recurring">0h</b></span><span><i class="i-growth"></i>成長 <b class="v" id="lg-growth">0h</b></span><span><i class="i-project"></i>目標 <b class="v" id="lg-project">0h</b></span><span><i class="i-travel"></i>移動 <b class="v" id="lg-travel">0h</b></span><span><i class="i-prep"></i>準備 <b class="v" id="lg-prep">0h</b></span><span><i class="i-balance"></i>残高 <b class="v" id="lg-balance">0h</b></span></div>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><span class="n">C</span><h2>C 警告の月別閾値</h2><span class="hint">緊急だが重要でないタスクの割合がこれを超えると改善提案が出ます</span></div>
-      <div class="panel-body" id="q3-monthly-body"></div>
-    </section>
-  </div>
-
   <div class="view" id="v-annual">
     <section class="panel">
       <div class="panel-head"><span class="n">③④</span><h2>年間タイムライン</h2><span class="hint">上＝年間の予定 / 下＝ガントチャート</span></div>
@@ -720,6 +710,25 @@
         <div id="cal-month"><div class="monthgrid" id="monthgrid"></div></div>
         <div id="cal-week" style="display:none;"><div class="wk-note" id="wk-note"></div></div>
       </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="n">設定</span><h2>可処分時間の設定</h2><span class="hint">睡眠・生活を除いた稼働可能時間</span></div>
+      <div class="panel-body"><div class="income"><label>1週間あたり</label><input id="income" type="number" min="0" step="1" value="40" style="width:100px;"> <span>時間</span><span class="calc" id="income-calc"></span></div></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="n">月間</span><h2>時間収支（月）</h2><span class="hint">収入 −（固定＋定期＋成長＋目標＋移動＋準備）＝残高</span></div>
+      <div class="panel-body">
+        <div class="summary">
+          <div class="bigbal"><div class="lab">可処分残高 / バッファ</div><div class="val" id="bal-val">—</div><div class="note" id="bal-note"></div></div>
+          <div><div class="bar" id="bar"></div>
+            <div class="legend"><span><i class="i-fixed"></i>固定 <b class="v" id="lg-fixed">0h</b></span><span><i class="i-recurring"></i>定期 <b class="v" id="lg-recurring">0h</b></span><span><i class="i-growth"></i>成長 <b class="v" id="lg-growth">0h</b></span><span><i class="i-project"></i>目標 <b class="v" id="lg-project">0h</b></span><span><i class="i-travel"></i>移動 <b class="v" id="lg-travel">0h</b></span><span><i class="i-prep"></i>準備 <b class="v" id="lg-prep">0h</b></span><span><i class="i-balance"></i>残高 <b class="v" id="lg-balance">0h</b></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="n">C</span><h2>C 警告の月別閾値</h2><span class="hint">緊急だが重要でないタスクの割合がこれを超えると改善提案が出ます</span></div>
+      <div class="panel-body" id="q3-monthly-body"></div>
     </section>
   </div>
 
@@ -1243,11 +1252,13 @@ function renderToday(){
   // 予定リスト
   const itemsList=document.getElementById("today-items-list");
   if(!todayItems.length){itemsList.innerHTML='<div class="today-empty">今日は繰り返し予定がありません。</div>';}
+  const _chkKey=id=>`jk-chk-${id}-${iso(today)}`;
   else{itemsList.innerHTML=todayItems.map(it=>{
     const ct=it.customerType||"internal";
     const dur=it.dur?`${it.dur}分`:"";
     const color=CAT_COLOR[it.category]||"var(--muted)";
-    return `<div class="today-row"><span class="today-t">${it.time||"―"}</span><span class="today-mk" style="color:${color}">${KMARK[it.category]||"▪"}</span><span class="cust-badge ${ct}" style="font-size:9px;padding:1px 6px;">${esc(customerLabel(it))}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${dur}</span></div>`;
+    const cl=it.checklist?.length?`<button class="cl-toggle" onclick="(()=>{const d=document.getElementById('tcl-${it.id}');d.style.display=d.style.display==='none'?'block':'none';})()">📋 ${it.checklist.length}ステップ</button><div class="today-cl" id="tcl-${it.id}">${it.checklist.map((s,i)=>{const k=_chkKey(it.id)+'-'+i;const done=localStorage.getItem(k)==='1';return `<label class="cl-row${done?' done':''}"><input type="checkbox"${done?' checked':''} onchange="(()=>{localStorage.setItem('${k}',this.checked?'1':'0');this.closest('.cl-row').classList.toggle('done',this.checked);})()"><span>${esc(s)}</span></label>`;}).join('')}</div>`:''
+    return `<div class="today-row" style="flex-wrap:wrap"><span class="today-t">${it.time||"―"}</span><span class="today-mk" style="color:${color}">${KMARK[it.category]||"▪"}</span><span class="cust-badge ${ct}" style="font-size:9px;padding:1px 6px;">${esc(customerLabel(it))}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${dur}</span>${cl}</div>`;
   }).join("");}
   // ゴール・マイルストーンリスト
   const goalsList=document.getElementById("today-goals-list");
@@ -1479,9 +1490,9 @@ function renderQ3Monthly(){
   };
 }
 
-function renderMonthly(){renderBudget();renderQ3Monthly();}
+function renderMonthly(){renderCalendar();}  // 月間タブはカレンダータブに統合
 const VIS_LABEL={busy:"◐ 多忙",private:"● 非公開"};
-function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";const memoLine=it.memo?`<span class="item-memo">${esc(it.memo)}</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button>${memoLine}<span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
+function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";const memoLine=it.memo?`<span class="item-memo">${esc(it.memo)}</span>`:"";const clBadge=(it.checklist?.length)?`<span class="cl-badge" onclick="openEdit('item','${it.id}')">📋 ${it.checklist.length}ステップ</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button>${clBadge}${memoLine}<span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
 function metaLabel(it){
   if(it.rep==="once")return it.date?`${it.date}${it.time?" "+it.time:""}・${it.dur}分`:"";
   if(MONTHLY_CATS.has(it.category)){const w=it.time?`／${DAYJP[it.day]||""}${it.time}〜`:"";return `月${it.monthly}h${w}`;}
@@ -1522,7 +1533,8 @@ document.getElementById("add-item").onclick=()=>{
   const title=document.getElementById("f-title").value.trim();if(!title)return;
   const category=kindSel.value,rep=repSel.value;
   const ctype=ctypeSel.value,cname=ctype==="customer"?document.getElementById("f-cname").value.trim():"";
-  const it={id:uid(),category,title,rep:freqMode==="once"?"once":rep,time:document.getElementById("f-time").value||"",dur:parseInt(document.getElementById("f-dur").value)||60,customerType:ctype,customerName:cname,tags:[],estimate:null,actual:null,visibility:document.getElementById("f-vis").value||"public"};
+  const memo=document.getElementById("f-memo").value.trim()||null;
+  const it={id:uid(),category,title,rep:freqMode==="once"?"once":rep,time:document.getElementById("f-time").value||"",dur:parseInt(document.getElementById("f-dur").value)||60,customerType:ctype,customerName:cname,tags:[],estimate:null,actual:null,visibility:document.getElementById("f-vis").value||"public",memo,checklist:[]};
   if(freqMode==="once"){
     it.date=document.getElementById("f-date").value;
     if(!it.date)return;
@@ -1538,7 +1550,7 @@ document.getElementById("add-item").onclick=()=>{
   if(MONTHLY_CATS.has(category)){it.monthly=parseInt(document.getElementById("f-monthly").value)||0;it.important=true;}
   state.items.push(it);
   if(ganttMode){const gdate=document.getElementById("f-gantt-date").value;if(gdate){state.events.push({id:uid(),title,date:gdate,important:true,steps:[],contextId:state.activeContext||null,tags:[],estimate:null,actual:null,visibility:"public",customerType:ctype,customerName:cname});renderAnnual();}}
-  save();renderBudget();document.getElementById("f-title").value="";
+  save();renderBudget();document.getElementById("f-title").value="";document.getElementById("f-memo").value="";
 };
 document.getElementById("income").oninput=e=>{state.income=parseFloat(e.target.value)||0;save();renderBudget();};
 
@@ -1658,6 +1670,8 @@ function renderCalendar(){
   document.getElementById("ct-month").classList.toggle("on",calMode==="month");
   document.getElementById("ct-week").classList.toggle("on",calMode==="week");
   if(calMode==="month")drawMonth();else drawWeek();
+  renderBudget();renderQ3Monthly();
+  const inc=document.getElementById("income");if(inc)inc.value=state.income||40;
 }
 function drawMonthGrid(container, year, month, entries){
   if(!entries) entries=monthEntries(year,month);
@@ -2114,7 +2128,7 @@ function openEdit(type,id,evId){
     const repOpts=[["weekly","毎週"],["biweekly","2週ごと（隔週）"],["monthly-date","毎月（同じ日付）"],["monthly-nth","毎月（第N曜日）"],["2-monthly","2ヶ月ごと"],["3-monthly","3ヶ月ごと（四半期）"],["6-monthly","半年ごと"],["yearly","毎年"]].map(([v,l])=>`<option value="${v}"${_curRep===v?" selected":""}>${l}</option>`).join("");
     const isMon=MONTHLY_CATS.has(it.category);
     const visOpts=['<option value="public"'+((!it.visibility||it.visibility==="public")?" selected":"")+'> 🌐 公開</option>','<option value="busy"'+(it.visibility==="busy"?" selected":"")+'> ◐ 多忙のみ</option>','<option value="private"'+(it.visibility==="private"?" selected":"")+'> ● 非公開</option>'].join("");
-    body.innerHTML=`<div class="dlg-field"><label>予定名</label><input id="dlg-f-title" type="text" value="${esc(it.title)}"></div><div class="dlg-field"><label>種別</label><select id="dlg-f-cat">${catOpts}</select></div><div class="dlg-field"><label>区分</label><select id="dlg-f-ctype">${ctOpts}</select></div><div class="dlg-field" id="dlg-wrap-cname" style="${ct==="customer"?"":"display:none"}"><label>顧客名</label><input id="dlg-f-cname" type="text" value="${esc(it.customerName||"")}"></div><div class="dlg-field"><label>公開レベル</label><select id="dlg-f-vis">${visOpts}</select></div><div class="dlg-field"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw${isOnce?"":" on"}" id="dlg-btn-rep">繰り返し</button><button class="vsw${isOnce?" on":""}" id="dlg-btn-once">一回のみ</button></div></div><div id="dlg-wrap-rep" style="${isOnce?"display:none":""}"><div class="dlg-field"><label>繰り返し</label><select id="dlg-f-rep">${repOpts}</select></div><div class="dlg-field" id="dlg-wrap-day"><label id="dlg-day-lab">曜日</label><select id="dlg-f-day"></select></div></div><div class="dlg-field" id="dlg-wrap-date" style="${isOnce?"":"display:none"}"><label>日付</label><input id="dlg-f-date-once" type="date" value="${it.date||""}"></div><div class="dlg-field"><label>開始時刻</label><input id="dlg-f-time" type="time" value="${it.time||"09:00"}"></div><div class="dlg-field"><label>所要時間（分）</label><input id="dlg-f-dur" type="number" min="5" step="5" value="${it.dur||60}"></div><div class="dlg-field" id="dlg-wrap-monthly" style="${isMon?"":"display:none"}"><label>月あたり（時間）</label><input id="dlg-f-monthly" type="number" min="1" step="1" value="${it.monthly||8}"></div>`;
+    body.innerHTML=`<div class="dlg-field"><label>予定名</label><input id="dlg-f-title" type="text" value="${esc(it.title)}"></div><div class="dlg-field"><label>種別</label><select id="dlg-f-cat">${catOpts}</select></div><div class="dlg-field"><label>区分</label><select id="dlg-f-ctype">${ctOpts}</select></div><div class="dlg-field" id="dlg-wrap-cname" style="${ct==="customer"?"":"display:none"}"><label>顧客名</label><input id="dlg-f-cname" type="text" value="${esc(it.customerName||"")}"></div><div class="dlg-field"><label>公開レベル</label><select id="dlg-f-vis">${visOpts}</select></div><div class="dlg-field"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw${isOnce?"":" on"}" id="dlg-btn-rep">繰り返し</button><button class="vsw${isOnce?" on":""}" id="dlg-btn-once">一回のみ</button></div></div><div id="dlg-wrap-rep" style="${isOnce?"display:none":""}"><div class="dlg-field"><label>繰り返し</label><select id="dlg-f-rep">${repOpts}</select></div><div class="dlg-field" id="dlg-wrap-day"><label id="dlg-day-lab">曜日</label><select id="dlg-f-day"></select></div></div><div class="dlg-field" id="dlg-wrap-date" style="${isOnce?"":"display:none"}"><label>日付</label><input id="dlg-f-date-once" type="date" value="${it.date||""}"></div><div class="dlg-field"><label>開始時刻</label><input id="dlg-f-time" type="time" value="${it.time||"09:00"}"></div><div class="dlg-field"><label>所要時間（分）</label><input id="dlg-f-dur" type="number" min="5" step="5" value="${it.dur||60}"></div><div class="dlg-field" id="dlg-wrap-monthly" style="${isMon?"":"display:none"}"><label>月あたり（時間）</label><input id="dlg-f-monthly" type="number" min="1" step="1" value="${it.monthly||8}"></div><div class="dlg-field"><label>メモ・備考</label><input id="dlg-f-memo" type="text" value="${esc(it.memo||"")}" placeholder="補足・URL・担当者など" style="width:100%;box-sizing:border-box"></div><div class="dlg-field" style="flex-direction:column;align-items:flex-start;gap:6px"><label>手順書（ステップ）</label><div id="dlg-cl-list"></div><button type="button" class="cl-add-btn" id="dlg-cl-add">＋ ステップを追加</button></div>`;
     setTimeout(()=>{
       const ctSel=document.getElementById("dlg-f-ctype");
       if(ctSel)ctSel.onchange=()=>{document.getElementById("dlg-wrap-cname").style.display=ctSel.value==="customer"?"":"none";};
@@ -2135,6 +2149,17 @@ function openEdit(type,id,evId){
       }
       const repSel=document.getElementById("dlg-f-rep");if(repSel)repSel.onchange=rebuildDlgDay;
       rebuildDlgDay();
+      // チェックリスト編集
+      const clList=document.getElementById("dlg-cl-list");
+      const _renderCl=()=>{
+        const steps=it.checklist||[];
+        clList.innerHTML=steps.map((s,i)=>`<div class="cl-step"><span class="cl-num">${i+1}</span><input type="text" class="cl-text" value="${esc(s)}" data-idx="${i}"><button type="button" class="cl-del" data-idx="${i}">×</button></div>`).join('');
+        clList.querySelectorAll(".cl-del").forEach(b=>b.onclick=()=>{(it.checklist||[]).splice(parseInt(b.dataset.idx),1);_renderCl();});
+        clList.querySelectorAll(".cl-text").forEach(inp=>inp.oninput=()=>{if(!it.checklist)it.checklist=[];it.checklist[parseInt(inp.dataset.idx)]=inp.value;});
+      };
+      if(!it.checklist)it.checklist=[];
+      _renderCl();
+      document.getElementById("dlg-cl-add").onclick=()=>{if(!it.checklist)it.checklist=[];it.checklist.push("");_renderCl();setTimeout(()=>{const inputs=clList.querySelectorAll(".cl-text");if(inputs.length)inputs[inputs.length-1].focus();},30);};
     },0);
   }else if(type==="event"){
     const ev=state.events.find(x=>x.id===id);if(!ev)return;
@@ -2188,6 +2213,9 @@ function saveEdit(){
       else if(rep==="yearly"){const[m,d]=dv.split("|");it.month=parseInt(m);it.mday=parseInt(d);delete it.day;delete it.nth;delete it.interval;}
     }
     if(MONTHLY_CATS.has(it.category)){it.monthly=parseInt(document.getElementById("dlg-f-monthly").value)||8;it.important=true;}
+    it.memo=document.getElementById("dlg-f-memo").value.trim()||null;
+    // チェックリストはダイアログ内で直接 it.checklist を更新済み、空文字を除去
+    it.checklist=(it.checklist||[]).filter(s=>s.trim());
     save();renderBudget();renderQuad();renderCalendar();
     document.getElementById("edit-dlg").close();return;
   }else if(type==="event"){
