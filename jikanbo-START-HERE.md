@@ -32,6 +32,13 @@
 
 ---
 
+## 2.5 GitHub 運用（2026-06-28〜）
+
+- `gh` CLI でログイン済み（Korotane アカウント）
+- Claude Code から `git push origin main` を直接実行できる
+- 「GitHubにあげて」と頼むだけで commit → push まで一括で動く
+- GitHub Pages URL: `https://Korotane.github.io/jikanbo/jikanbo.html`
+
 ## 3. 現在のタブ構成
 
 ```
