@@ -133,6 +133,7 @@
   .item:hover { background: var(--surface); box-shadow: var(--shadow-sm); border-color: var(--line); }
   .item .t { font-weight: 500; }
   .item .m { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .item-memo { font-size: 11px; color: var(--muted); width: 100%; margin-top: 2px; white-space: pre-line; line-height: 1.5; }
   .item .h { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-weight: 500; min-width: 52px; text-align: right; }
   .del, .mini-del { cursor: pointer; color: var(--faint); border: none; background: none; font-size: 16px; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; line-height: 1; }
   .del:hover, .mini-del:hover { color: var(--over); background: var(--ember-soft); }
@@ -822,7 +823,12 @@
         <label>繰り返し</label>
         <select id="qa-rep">
           <option value="weekly">毎週（同じ曜日）</option>
+          <option value="biweekly">2週ごと（隔週）</option>
           <option value="monthly-date">毎月（同じ日付）</option>
+          <option value="2-monthly">2ヶ月ごと</option>
+          <option value="3-monthly">3ヶ月ごと（四半期）</option>
+          <option value="6-monthly">半年ごと</option>
+          <option value="yearly">毎年</option>
         </select>
       </div>
       <div class="dlg-field">
@@ -839,6 +845,12 @@
       </div>
     </div>
   </details>
+  <div style="padding:0 20px 4px">
+    <div class="dlg-field">
+      <label>メモ</label>
+      <textarea id="qa-memo" rows="2" placeholder="補足・リンク・詳細など" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+  </div>
   <div class="dlg-foot">
     <button class="btn ghost" id="qa-cancel">キャンセル</button>
     <button class="btn plan" id="qa-save">追加</button>
@@ -899,7 +911,7 @@ const MONTHLY_CATS=new Set(["invest","growth","project"]);
 function monthlyHours(it){
   if(it.rep==="once"){const d=it.date?ymd(it.date):null;return(d&&d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth())?(it.dur||0)/60:0;}
   if(MONTHLY_CATS.has(it.category))return it.monthly||0;
-  const per=(it.dur||0)/60;switch(it.rep){case "weekly":return per*WPM;case "monthly-date":case "monthly-nth":return per;case "yearly":return per/12;default:return per*WPM;}
+  const per=(it.dur||0)/60;switch(it.rep){case "weekly":return per*WPM;case "biweekly":return per*WPM/2;case "monthly-date":case "monthly-nth":return per;case "n-monthly":return per/(it.interval||2);case "yearly":return per/12;default:return per*WPM;}
 }
 function sumKind(items,kind){return items.filter(i=>i.category===kind).reduce((a,i)=>a+monthlyHours(i),0);}
 function pinDue(ev,s){if(s.date)return ymd(s.date);return new Date(ymd(ev.date).getTime()-s.lead*(UNIT[s.unit]||1)*DAY);}
@@ -1449,11 +1461,11 @@ function renderQ3Monthly(){
 
 function renderMonthly(){renderBudget();renderQ3Monthly();}
 const VIS_LABEL={busy:"◐ 多忙",private:"● 非公開"};
-function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button><span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
+function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";const memoLine=it.memo?`<span class="item-memo">${esc(it.memo)}</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button>${memoLine}<span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
 function metaLabel(it){
   if(it.rep==="once")return it.date?`${it.date}${it.time?" "+it.time:""}・${it.dur}分`:"";
   if(MONTHLY_CATS.has(it.category)){const w=it.time?`／${DAYJP[it.day]||""}${it.time}〜`:"";return `月${it.monthly}h${w}`;}
-  switch(it.rep){case "weekly":return `毎週${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "monthly-date":return `毎月${it.mday}日 ${it.time||""}・${it.dur}分`;case "monthly-nth":return `毎月${nthJp(it.nth)}${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "yearly":return `毎年${it.month}/${it.mday}・${it.dur}分`;default:return "";}
+  switch(it.rep){case "weekly":return `毎週${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "biweekly":return `2週ごと${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "monthly-date":return `毎月${it.mday}日 ${it.time||""}・${it.dur}分`;case "n-monthly":return `${it.interval||2}ヶ月ごと${it.mday}日 ${it.time||""}・${it.dur}分`;case "monthly-nth":return `毎月${nthJp(it.nth)}${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "yearly":return `毎年${it.month}/${it.mday}・${it.dur}分`;default:return "";}
 }
 function nthJp(n){return ({"1":"第1","2":"第2","3":"第3","4":"第4","-1":"最終"})[String(n)]||"";}
 
@@ -1578,7 +1590,19 @@ document.getElementById("ev-vsw-cust").onclick=()=>{ganttView="customer";documen
 function occInMonth(it,year,month){
   const days=[];const last=new Date(year,month+1,0).getDate();
   if(it.rep==="once"){if(it.date){const d=ymd(it.date);if(d.getFullYear()===year&&d.getMonth()===month)days.push(d);}return days;}
-  if(it.rep==="weekly"){const t=DAYIDX[it.day];for(let d=1;d<=last;d++){const dt=new Date(year,month,d);if(dt.getDay()===t)days.push(dt);}}else if(it.rep==="monthly-date"){if(it.mday<=last)days.push(new Date(year,month,it.mday));}else if(it.rep==="monthly-nth"){const dt=nthWd(year,month,it.nth,it.day,0,0);if(dt.getMonth()===month)days.push(dt);}else if(it.rep==="yearly"){if(it.month-1===month)days.push(new Date(year,month,it.mday));}
+  if(it.rep==="weekly"){const t=DAYIDX[it.day];for(let d=1;d<=last;d++){const dt=new Date(year,month,d);if(dt.getDay()===t)days.push(dt);}}
+  else if(it.rep==="biweekly"){
+    const t=DAYIDX[it.day];const ref=ymd(it.startDate||it.date||iso(today));
+    for(let d=1;d<=last;d++){const dt=new Date(year,month,d);if(dt.getDay()===t){const wks=Math.round((dt-ref)/DAY/7);if(wks>=0&&wks%2===0)days.push(dt);}}
+  }
+  else if(it.rep==="monthly-date"){if(it.mday<=last)days.push(new Date(year,month,it.mday));}
+  else if(it.rep==="n-monthly"){
+    const ref=ymd(it.startDate||it.date||iso(today));
+    const diff=(year-ref.getFullYear())*12+(month-ref.getMonth());
+    if(diff>=0&&diff%(it.interval||2)===0&&(it.mday||1)<=last)days.push(new Date(year,month,it.mday||1));
+  }
+  else if(it.rep==="monthly-nth"){const dt=nthWd(year,month,it.nth,it.day,0,0);if(dt.getMonth()===month)days.push(dt);}
+  else if(it.rep==="yearly"){if(it.month-1===month)days.push(new Date(year,month,it.mday));}
   return days;
 }
 const KMARK={anchor:"●",prep:"◆",fixed:"▪",recurring:"▫",invest:"★",growth:"▲",project:"★",travel:"▶",manual:"⚡"};
@@ -1750,6 +1774,7 @@ function openQuickAdd(dateStr){
   document.getElementById("qa-urgent").checked=false;
   document.getElementById("qa-kind").value="";
   document.getElementById("qa-vis").value="public";
+  document.getElementById("qa-memo").value="";
   document.getElementById("qa-details").removeAttribute("open");
   // 文脈セレクト
   const ctxSel=document.getElementById("qa-ctx");
@@ -1772,19 +1797,25 @@ function openQuickAdd(dateStr){
     const vis=document.getElementById("qa-vis").value||"public";
     const ctxId=document.getElementById("qa-ctx").value||null;
     const rep=document.getElementById("qa-rep").value;
+    const memo=document.getElementById("qa-memo").value.trim()||null;
 
     if(kind){
       // 繰り返し予定 → state.items
       const it={id:uid(),title,category:kind,time,dur,tags:[],estimate:null,actual:null,
-        visibility:vis,contextId:ctxId,important,urgent};
+        visibility:vis,contextId:ctxId,important,urgent,memo};
       if(rep==="weekly"){it.rep="weekly";it.day=d.getDay();}
+      else if(rep==="biweekly"){it.rep="biweekly";it.day=d.getDay();it.startDate=dateStr;}
       else if(rep==="monthly-date"){it.rep="monthly-date";it.mday=d.getDate();}
+      else if(rep==="2-monthly"){it.rep="n-monthly";it.interval=2;it.mday=d.getDate();it.startDate=dateStr;}
+      else if(rep==="3-monthly"){it.rep="n-monthly";it.interval=3;it.mday=d.getDate();it.startDate=dateStr;}
+      else if(rep==="6-monthly"){it.rep="n-monthly";it.interval=6;it.mday=d.getDate();it.startDate=dateStr;}
+      else if(rep==="yearly"){it.rep="yearly";it.month=d.getMonth()+1;it.mday=d.getDate();}
       else{it.rep="once";it.date=dateStr;}
       state.items.push(it);
     }else{
       // 一時タスク → state.tasks
       state.tasks.push({id:uid(),title,date:dateStr,time,dur,important,urgent,done:false,
-        visibility:vis,tags:[],estimate:null,actual:null,contextId:ctxId});
+        visibility:vis,tags:[],estimate:null,actual:null,contextId:ctxId,memo});
     }
     save();
     if(active==="home")renderHome();
@@ -1966,7 +1997,7 @@ document.getElementById('copy-report').onclick=()=>{
   const btn=document.getElementById('copy-report');btn.textContent="コピーしました";setTimeout(()=>btn.textContent="クリップボードにコピー",2000);
 };
 function kindMark(k){return {fixed:"［固定］",recurring:"［定期］",invest:"［投資］",growth:"［成長］",project:"［目標］",travel:"［移動］"}[k]||"";}
-function rrule(it){switch(it.rep){case "weekly":return "FREQ=WEEKLY;BYDAY="+it.day;case "monthly-date":return "FREQ=MONTHLY;BYMONTHDAY="+it.mday;case "monthly-nth":return "FREQ=MONTHLY;BYDAY="+it.nth+it.day;case "yearly":return "FREQ=YEARLY;BYMONTH="+it.month+";BYMONTHDAY="+it.mday;}}
+function rrule(it){switch(it.rep){case "weekly":return "FREQ=WEEKLY;BYDAY="+it.day;case "biweekly":return "FREQ=WEEKLY;INTERVAL=2;BYDAY="+it.day;case "monthly-date":return "FREQ=MONTHLY;BYMONTHDAY="+it.mday;case "n-monthly":return "FREQ=MONTHLY;INTERVAL="+(it.interval||2)+";BYMONTHDAY="+(it.mday||1);case "monthly-nth":return "FREQ=MONTHLY;BYDAY="+it.nth+it.day;case "yearly":return "FREQ=YEARLY;BYMONTH="+it.month+";BYMONTHDAY="+it.mday;}}
 function firstOcc(it){const[hh,mm]=(it.time||"09:00").split(":").map(Number);const now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);if(it.rep==="weekly"){const t=DAYIDX[it.day];while(d.getDay()!==t||d<now)d.setDate(d.getDate()+1);}else if(it.rep==="monthly-date"){d.setDate(it.mday);if(d<now)d.setMonth(d.getMonth()+1);}else if(it.rep==="monthly-nth"){d=nthWd(now.getFullYear(),now.getMonth(),it.nth,it.day,hh,mm);if(d<now)d=nthWd(now.getFullYear(),now.getMonth()+1,it.nth,it.day,hh,mm);}else if(it.rep==="yearly"){d=new Date(now.getFullYear(),it.month-1,it.mday,hh,mm,0);if(d<now)d.setFullYear(d.getFullYear()+1);}return {start:d,end:new Date(d.getTime()+(it.dur||60)*60000)};}
 function nthWd(y,m,nth,day,hh,mm){const t=DAYIDX[day];if(nth==="-1"){let d=new Date(y,m+1,0,hh,mm);while(d.getDay()!==t)d.setDate(d.getDate()-1);return d;}let c=0,d=new Date(y,m,1,hh,mm);while(true){if(d.getDay()===t){c++;if(c===parseInt(nth))return d;}d.setDate(d.getDate()+1);if(d.getMonth()!==m)return new Date(y,m,1,hh,mm);}}
 
