@@ -353,6 +353,18 @@
   .est-log-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
   .est-log-actual { font-family: var(--font-mono); font-size: 11px; width: 40px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); text-align: right; }
   .est-log-save { padding: 2px 8px; font-size: 10px; }
+  /* 週次トレンドチャート */
+  .trend-chart { display: flex; align-items: flex-end; gap: 3px; height: 100px; margin-bottom: 4px; }
+  .trend-col { flex: 1; display: flex; flex-direction: column-reverse; min-width: 0; border-radius: 3px 3px 0 0; overflow: hidden; position: relative; }
+  .trend-col.cur-week { outline: 2px solid var(--plan); border-radius: 3px; }
+  .trend-seg { width: 100%; min-height: 0; transition: height .3s; }
+  .trend-labels { display: flex; gap: 3px; margin-bottom: 14px; }
+  .trend-lbl { flex: 1; font-size: 9px; text-align: center; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .trend-lbl.cur-week { color: var(--plan); font-weight: 700; }
+  .trend-vals { display: flex; gap: 3px; margin-bottom: 3px; }
+  .trend-val { flex: 1; font-size: 9px; font-family: var(--font-mono); text-align: center; color: var(--muted); }
+  .trend-axis { border-top: 1px solid var(--line); margin-bottom: 2px; }
+  /* ana-period-table */
   .ana-period-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
   .ana-period-table th { font-size: 10px; font-weight: 700; color: var(--muted); text-align: left; padding: 4px 6px; border-bottom: 2px solid var(--line); }
   .ana-period-table td { padding: 6px 6px; border-bottom: 1px solid var(--line); }
@@ -913,7 +925,32 @@ function renderAnalysis(){
   const periodRows=periods.map(p=>{const isActive=p.start<=todayISO&&p.end>=todayISO;return `<tr class="${isActive?"active-period":""}"><td>${p.start}</td><td>${p.end}</td><td><strong>${p.threshold}%</strong>${isActive?' <span style="color:var(--active);font-size:10px">●適用中</span>':""}</td><td><button class="mini-del" onclick="_delQ3Period('${p.id}')">×</button></td></tr>`;}).join("");
   const periodSection=`<div class="ana-section"><div class="ana-section-hd">Q3閾値 期間別設定 <span style="font-weight:400;text-transform:none;font-size:10px">（繁忙期は緩め・通常期は厳しめに）</span></div>${periods.length?`<table class="ana-period-table"><thead><tr><th>開始</th><th>終了</th><th>閾値</th><th></th></tr></thead><tbody>${periodRows}</tbody></table>`:`<div class="ana-empty" style="margin-bottom:10px">期間設定なし。グローバル閾値（${q3ThrGlobal}%）が適用されます。</div>`}<div class="ana-period-add"><input type="date" id="p-start"><span>〜</span><input type="date" id="p-end"><span>閾値:</span><input type="number" id="p-thr" min="5" max="50" step="5" value="30"><span>%</span><button class="btn" onclick="_addQ3Period()">＋追加</button></div></div>`;
 
-  body.innerHTML=catSection+quadSection+tagSection+ctxSection+periodSection;
+  // ─── 週次トレンド（過去8週） ───
+  const N_WEEKS=8;
+  const trendWeeks=[];
+  const todayDow=today.getDay();
+  const daysFromMon=todayDow===0?6:todayDow-1;
+  for(let i=N_WEEKS-1;i>=0;i--){
+    const ws=new Date(today);ws.setDate(today.getDate()-daysFromMon-i*7);
+    const we=new Date(ws);we.setDate(ws.getDate()+6);
+    const days=Array.from({length:7},(_,j)=>{const d=new Date(ws);d.setDate(ws.getDate()+j);return d;});
+    const wCatH={};
+    state.items.forEach(it=>{days.forEach(d=>{if(occInMonth(it,d.getFullYear(),d.getMonth()).some(occ=>sameDay(occ,d))){wCatH[it.category]=(wCatH[it.category]||0)+(it.dur||60)/60;}});});
+    const total=Object.values(wCatH).reduce((a,b)=>a+b,0);
+    const isCur=i===0;
+    trendWeeks.push({ws,catH:wCatH,total,isCur,label:`${ws.getMonth()+1}/${ws.getDate()}`});
+  }
+  const maxH=Math.max(...trendWeeks.map(w=>w.total),1);
+  const CAT_ORDER=["fixed","recurring","growth","project","travel","invest"];
+  const trendCols=trendWeeks.map(({catH:wCatH,total,isCur,label})=>{
+    const segs=CAT_ORDER.filter(k=>wCatH[k]>0).map(k=>{const hPct=wCatH[k]/maxH*100;return `<div class="trend-seg" style="height:${hPct.toFixed(1)}%;background:${CAT_COL[k]||"var(--muted)"};" title="${CAT_LABELS[k]||k}: ${wCatH[k].toFixed(1)}h"></div>`;}).join("");
+    return `<div class="trend-col${isCur?" cur-week":""}">${segs}</div>`;
+  }).join("");
+  const trendVals=trendWeeks.map(({total,isCur})=>`<div class="trend-val"${isCur?' style="color:var(--plan);font-weight:700"':''}>${total>0?total.toFixed(1):""}</div>`).join("");
+  const trendLbls=trendWeeks.map(({label,isCur})=>`<div class="trend-lbl${isCur?" cur-week":""}">${isCur?"今週":label}</div>`).join("");
+  const trendSection=`<div class="ana-section"><div class="ana-section-hd">週次トレンド（過去${N_WEEKS}週・予定ベース）</div><div class="trend-vals">${trendVals}</div><div class="trend-chart">${trendCols}</div><div class="trend-axis"></div><div class="trend-labels">${trendLbls}</div></div>`;
+
+  body.innerHTML=catSection+trendSection+quadSection+tagSection+ctxSection+periodSection;
 
   const slider=document.getElementById("q3-slider");
   if(slider){
