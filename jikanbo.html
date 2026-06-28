@@ -312,7 +312,8 @@
   .qtask { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 13px; font-weight: 500; border: 1px solid var(--line); box-shadow: var(--shadow-sm); transition: box-shadow 0.15s, transform 0.15s; flex-wrap: wrap; }
   .qtask:hover { box-shadow: var(--shadow); }
   .qtask.draggable { cursor: default; }
-  .qtask.manual { flex-direction: column; align-items: stretch; gap: 6px; }
+  .qtask.manual,.qtask.item-row { flex-direction: column; align-items: stretch; gap: 4px; }
+  .qtask.item-row .qrow.top .qt { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .qrow { display: flex; align-items: center; gap: 8px; }
   .drag-handle { color: var(--line-strong); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; padding: 2px; opacity: 0.6; transition: opacity 0.15s; }
   .qtask:hover .drag-handle { opacity: 1; }
@@ -1993,16 +1994,20 @@ function renderQuad(){
           </div>`;
         }else{
           const dur=t.data.dur||60;
-          return `<div class="qtask draggable" data-type="item" data-id="${t.id}">
-            <span class="drag-handle">⋮⋮</span>
-            <button class="star ${t.important?'on':''}" onclick="toggleMeta('item','${t.id}','important')">★</button>
-            <button class="star urg ${t.urgent?'on':''}" onclick="toggleMeta('item','${t.id}','urgent')">⚡</button>
-            <span class="qkind k-${t.kind}">${({fixed:"固定",recurring:"定期",invest:"投資"})[t.kind]}</span>
-            <span class="qt">${esc(t.title)}</span>
-            ${tagChips(t.tags)}
-            <button class="tagbtn" onclick="openTagMenu(this,'item','${t.id}')">＋タグ</button>
-            <span class="qd">${dur}分/回</span>
-            <button class="mini-edit" onclick="openEdit('item','${t.id}')">✎</button>
+          return `<div class="qtask item-row draggable" data-type="item" data-id="${t.id}">
+            <div class="qrow top">
+              <span class="drag-handle">⋮⋮</span>
+              <button class="star ${t.important?'on':''}" onclick="toggleMeta('item','${t.id}','important')">★</button>
+              <button class="star urg ${t.urgent?'on':''}" onclick="toggleMeta('item','${t.id}','urgent')">⚡</button>
+              <span class="qkind k-${t.kind}">${CAT_LABELS[t.kind]||t.kind}</span>
+              <span class="qt">${esc(t.title)}</span>
+            </div>
+            <div class="qrow bot">
+              ${tagChips(t.tags)}
+              <button class="tagbtn" onclick="openTagMenu(this,'item','${t.id}')">＋タグ</button>
+              <span class="qd">${dur}分/回</span>
+              <button class="mini-edit" onclick="openEdit('item','${t.id}')">✎</button>
+            </div>
           </div>`;
         }
       }
