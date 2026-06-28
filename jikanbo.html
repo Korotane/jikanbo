@@ -313,20 +313,25 @@
   .qtask:hover { box-shadow: var(--shadow); }
   .qtask.draggable { cursor: default; }
   .qtask.manual,.qtask.item-row { flex-direction: column; align-items: stretch; gap: 4px; }
-  .qtask.item-row .qrow.top .qt { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  /* qrow.top は flex コンテナなので min-width:0 を明示しないと min-content 幅でブロックされる */
+  .qtask.manual > .qrow.top, .qtask.item-row > .qrow.top { min-width: 0; overflow: hidden; }
+  .qtask.manual > .qrow.top .qt, .qtask.item-row > .qrow.top .qt { flex:1 1 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .qrow { display: flex; align-items: center; gap: 8px; }
-  .drag-handle { color: var(--line-strong); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; padding: 2px; opacity: 0.6; transition: opacity 0.15s; }
+  /* ドラッグハンドル：PC通常サイズ、モバイルは 44px 以上のタッチターゲット */
+  .drag-handle { color: var(--line-strong); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; padding: 2px 6px; opacity: 0.6; transition: opacity 0.15s; flex-shrink:0; }
+  @media(pointer:coarse){ .drag-handle { font-size:20px; padding:12px 14px; opacity:0.8; } }
   .qtask:hover .drag-handle { opacity: 1; }
   .qtask.manual-done { opacity: 0.45; }
   .qtask.manual-done .qt { text-decoration: line-through; }
-  .qtask .star { cursor: pointer; font-size: 14px; border: none; background: none; color: var(--line-strong); padding: 4px; transition: color 0.15s; border-radius: 4px; }
+  .qtask .star { cursor: pointer; font-size: 14px; border: none; background: none; color: var(--line-strong); padding: 4px; transition: color 0.15s; border-radius: 4px; flex-shrink:0; }
   .qtask .star:hover { background: var(--surface-2); }
   .qtask .star.on { color: var(--plan); }
   .qtask .star.urg.on { color: var(--over); }
-  .qtask .qt { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 60px; }
-  .qkind { font-size: 10px; font-weight: 600; color: #fff; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .qtask .qt { flex: 1 1 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .qkind { font-size: 10px; font-weight: 600; color: #fff; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink:0; }
   .qkind.k-fixed { background: var(--fixed); } .qkind.k-recurring { background: var(--plan); } .qkind.k-invest { background: var(--invest); } .qkind.k-anchor { background: var(--ember); } .qkind.k-prep { background: var(--active); }
-  .qtask .qd { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: auto; }
+  .qkind.k-growth { background: var(--growth); } .qkind.k-project { background: var(--project); } .qkind.k-travel { background: var(--travel); }
+  .qtask .qd { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: auto; flex-shrink:0; }
   .qrow.bot { gap: 6px; opacity: 0.85; }
   .qrow.bot input[type="date"] { width: 130px; padding: 4px 6px; font-size: 12px; }
   .qrow.bot input[type="number"] { width: 56px; padding: 4px 6px; font-size: 12px; }
