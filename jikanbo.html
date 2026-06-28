@@ -300,11 +300,13 @@
   .quad[data-q="3"]::before { background: var(--active); }
   .quad[data-q="4"]::before { background: var(--faint); }
   .quad.drop-hot { background: rgba(91,113,134,0.06); border-color: var(--plan); box-shadow: inset 0 0 0 1px var(--plan); }
-  .quad .qlabel { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
-  .qbadge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: .03em; }
-  .qbadge.imp { background: color-mix(in srgb, var(--fixed) 14%, transparent); color: var(--fixed); border: 1px solid color-mix(in srgb, var(--fixed) 30%, transparent); }
-  .qbadge.urg { background: color-mix(in srgb, var(--ember) 14%, transparent); color: var(--ember); border: 1px solid color-mix(in srgb, var(--ember) 30%, transparent); }
-  .qbadge.non { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); border: 1px solid color-mix(in srgb, var(--muted) 22%, transparent); }
+  .quad .qlabel { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .ql-alpha { display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:13px;font-weight:800;font-family:var(--font-mono);flex-shrink:0; }
+  .ql-alpha.qa { background:color-mix(in srgb,var(--ember) 14%,transparent);color:var(--ember); }
+  .ql-alpha.qb { background:color-mix(in srgb,var(--plan) 14%,transparent);color:var(--plan); }
+  .ql-alpha.qc { background:color-mix(in srgb,var(--active) 14%,transparent);color:var(--active); }
+  .ql-alpha.qd { background:color-mix(in srgb,var(--muted) 14%,transparent);color:var(--muted); }
+  .ql-txt { font-size:12px;font-weight:600;color:var(--ink); }
   .qbox { min-height: 40px; }
 
   .qtask { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 13px; font-weight: 500; border: 1px solid var(--line); box-shadow: var(--shadow-sm); transition: box-shadow 0.15s, transform 0.15s; flex-wrap: wrap; }
@@ -649,7 +651,7 @@
       </div>
     </section>
     <section class="panel">
-      <div class="panel-head"><span class="n">Q3</span><h2>Q3警告の月別閾値</h2><span class="hint">この割合を超えると改善提案が表示されます</span></div>
+      <div class="panel-head"><span class="n">C</span><h2>C 警告の月別閾値</h2><span class="hint">緊急だが重要でないタスクの割合がこれを超えると改善提案が出ます</span></div>
       <div class="panel-body" id="q3-monthly-body"></div>
     </section>
   </div>
@@ -723,14 +725,14 @@
 
   <div class="view" id="v-quad">
     <section class="panel">
-      <div class="panel-head"><span class="n">▦</span><h2>アイゼンハワー4象限 ＋ インボックス</h2><span class="hint">カードをドラッグして重要度・緊急度を整理</span></div>
+      <div class="panel-head"><span class="n">▦</span><h2>優先度マトリクス（ABCD）＋ インボックス</h2><span class="hint">カードをドラッグして整理</span></div>
       <div class="panel-body">
         <div id="tag-filter" class="tag-filter"></div>
         <div class="quad-grid">
-          <div class="quad" data-q="1" data-drop="quad"><div class="qlabel"><span class="qbadge imp">★ 重要</span><span class="qbadge urg">⚡ 緊急</span></div><div class="qbox" data-q="1"></div></div>
-          <div class="quad" data-q="2" data-drop="quad"><div class="qlabel"><span class="qbadge imp">★ 重要</span><span class="qbadge non">非緊急</span></div><div class="qbox" data-q="2"></div></div>
-          <div class="quad" data-q="3" data-drop="quad"><div class="qlabel"><span class="qbadge non">非重要</span><span class="qbadge urg">⚡ 緊急</span></div><div class="qbox" data-q="3"></div></div>
-          <div class="quad" data-q="4" data-drop="quad"><div class="qlabel"><span class="qbadge non">非重要</span><span class="qbadge non">非緊急</span></div><div class="qbox" data-q="4"></div></div>
+          <div class="quad" data-q="1" data-drop="quad"><div class="qlabel"><span class="ql-alpha qa">A</span><span class="ql-txt">重要で緊急</span></div><div class="qbox" data-q="1"></div></div>
+          <div class="quad" data-q="2" data-drop="quad"><div class="qlabel"><span class="ql-alpha qb">B</span><span class="ql-txt">重要だが緊急でない</span></div><div class="qbox" data-q="2"></div></div>
+          <div class="quad" data-q="3" data-drop="quad"><div class="qlabel"><span class="ql-alpha qc">C</span><span class="ql-txt">緊急だが重要でない</span></div><div class="qbox" data-q="3"></div></div>
+          <div class="quad" data-q="4" data-drop="quad"><div class="qlabel"><span class="ql-alpha qd">D</span><span class="ql-txt">重要でも緊急でもない</span></div><div class="qbox" data-q="4"></div></div>
         </div>
       </div>
     </section>
@@ -972,7 +974,7 @@ function openTagMenu(anchor,type,id){
   const obj=findTaggable(type,id);if(!obj)return;if(!obj.tags)obj.tags=[];
   const menu=document.createElement('div');menu.className='tagmenu';menu.id='tagmenu';
   const tags=state.tags||[];
-  if(!tags.length){menu.innerHTML='<div class="tm-empty">タグが未作成です。<br>「4象限」画面の<br>「タグ管理」で追加してください。</div>';}
+  if(!tags.length){menu.innerHTML='<div class="tm-empty">タグが未作成です。<br>「4象限」タブの<br>「タグ管理」で追加してください。</div>';}
   else menu.innerHTML=tags.map(t=>`<label class="tm-row"><input type="checkbox" ${obj.tags.includes(t.id)?'checked':''} data-tag="${t.id}"><span class="tagchip" style="--tc:${t.color}" title="${esc(t.label||"")}">${t.icon||"◇"}${t.label?' '+esc(t.label):''}</span></label>`).join('');
   document.body.appendChild(menu);
   const r=anchor.getBoundingClientRect();
@@ -1100,13 +1102,13 @@ function renderAnalysis(){
   const catSection=`<div class="ana-section"><div class="ana-section-hd">カテゴリ別 月間時間（予定ベース）</div>${catRows||'<div class="ana-empty">予定データがありません。</div>'}</div>`;
 
   // 象限別
-  const qDef=[{id:"q1",lbl:"Q1 重要×緊急",col:"var(--ember)"},{id:"q2",lbl:"Q2 重要×非緊急",col:"var(--fixed)"},{id:"q3",lbl:"Q3 緊急×非重要",col:"var(--active)"},{id:"q4",lbl:"Q4 非重要×非緊急",col:"var(--muted)"}];
+  const qDef=[{id:"q1",lbl:"A 重要で緊急",col:"var(--ember)"},{id:"q2",lbl:"B 重要だが緊急でない",col:"var(--fixed)"},{id:"q3",lbl:"C 緊急だが重要でない",col:"var(--active)"},{id:"q4",lbl:"D どちらでもない",col:"var(--muted)"}];
   const qGrid=qDef.map(({id,lbl,col})=>{const h=qh[id],pct=Math.round(h/totalQH*100);return `<div class="ana-q-box" style="border-top:3px solid ${col}"><div class="ana-q-label" style="color:${col}">${lbl}</div><div class="ana-q-val">${h.toFixed(1)}h</div><div class="ana-q-pct">${pct}%</div></div>`;}).join("");
-  const thrNote=`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">今月のQ3警告閾値: <strong style="color:var(--ink)">${q3Thr}%</strong>（${q3ThrSrc}） — <span style="cursor:pointer;text-decoration:underline;color:var(--plan)" onclick="document.querySelector('[data-view=monthly]').click()">月間タブで変更</span></div>`;
+  const thrNote=`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">今月のC警告閾値: <strong style="color:var(--ink)">${q3Thr}%</strong>（${q3ThrSrc}） — <span style="cursor:pointer;text-decoration:underline;color:var(--plan)" onclick="document.querySelector('[data-view=monthly]').click()">月間タブで変更</span></div>`;
   const q3Alert=q3Over
-    ?`<div class="ana-alert"><strong>Q3 過多を検出</strong>（現在 ${q3Pct}% ／ 閾値 ${q3Thr}%）<br>Q3（緊急×非重要）が多い状態は業務改善のサインです。<ul class="ana-suggest"><li>🔄 <strong>定型化・自動化</strong> — 繰り返しのQ3タスクをテンプレートやルーティンに</li><li>🤝 <strong>委任・依頼</strong> — 自分でなくてもよい緊急タスクを任せる</li><li>🔍 <strong>発生源を断つ</strong> — 「なぜ緊急になるか」の根本を探り、Q2（計画）へ移す</li></ul></div>`
-    :(state.tasks.length>0?`<div class="ana-ok">Q3は閾値（${q3Thr}%）以内です。</div>`:"");
-  const quadSection=`<div class="ana-section"><div class="ana-section-hd">象限別時間（タスクベース）</div>${state.tasks.length===0?'<div class="ana-empty">タスクを追加すると象限分析が表示されます。</div>':`<div class="ana-q-grid">${qGrid}</div>${thrNote}${q3Alert}${candList(q3Tasks,"Q3 削減候補（緊急×非重要）")}${candList(q4Tasks,"Q4 削減候補（非重要×非緊急）")}`}</div>`;
+    ?`<div class="ana-alert"><strong>C（緊急だが重要でない）が過多です</strong>（現在 ${q3Pct}% ／ 閾値 ${q3Thr}%）<br>Cが多い状態は業務改善のサインです。<ul class="ana-suggest"><li>🔄 <strong>定型化・自動化</strong> — 繰り返しのCタスクをテンプレートやルーティンに</li><li>🤝 <strong>委任・依頼</strong> — 自分でなくてもよい緊急タスクを任せる</li><li>🔍 <strong>発生源を断つ</strong> — 「なぜ緊急になるか」の根本を探り、B（重要・計画）へ移す</li></ul></div>`
+    :(state.tasks.length>0?`<div class="ana-ok">C（緊急だが重要でない）は閾値（${q3Thr}%）以内です。</div>`:"");
+  const quadSection=`<div class="ana-section"><div class="ana-section-hd">優先度別時間（ABCD）</div>${state.tasks.length===0?'<div class="ana-empty">タスクを追加すると優先度分析が表示されます。</div>':`<div class="ana-q-grid">${qGrid}</div>${thrNote}${q3Alert}${candList(q3Tasks,"C 削減候補（緊急だが重要でない）")}${candList(q4Tasks,"D 削減候補（どちらでもない）")}`}</div>`;
 
   // タグ別
   const tagRows=Object.entries(tagH).sort((a,b)=>b[1]-a[1]).map(([tid,h])=>{const tag=state.tags.find(t=>t.id===tid);if(!tag)return "";const lbl=`${tag.icon||"◇"} ${tag.label||"（ラベルなし）"}`;return barRow(lbl,h,totalTagH,tag.color||"var(--muted)");}).filter(Boolean).join("");
@@ -1782,7 +1784,7 @@ function _renderHomeMiniQuad(){
   }
   const q={1:[],2:[],3:[],4:[]};
   allT.forEach(t=>{const qi=t.important?(t.urgent?1:2):(t.urgent?3:4);q[qi].push(t);});
-  const QDef=[{id:1,lbl:"Q1",col:"var(--ember)"},{id:2,lbl:"Q2",col:"var(--fixed)"},{id:3,lbl:"Q3",col:"var(--active)"},{id:4,lbl:"Q4",col:"var(--muted)"}];
+  const QDef=[{id:1,lbl:"A 重要で緊急",col:"var(--ember)"},{id:2,lbl:"B 重要・計画",col:"var(--fixed)"},{id:3,lbl:"C 緊急・非重要",col:"var(--active)"},{id:4,lbl:"D どちらでもない",col:"var(--muted)"}];
   el.innerHTML=QDef.map(({id,lbl,col})=>{
     const items=q[id];
     const sample=items.slice(0,3).map(t=>`<div class="hq-task-row">▸ ${esc(t.title)}</div>`).join('');
@@ -2071,7 +2073,7 @@ document.getElementById('gen-report').onclick=()=>{
   text+=`\n■ 未完了の重要・緊急タスク\n`;
   if(activeTasks.length)activeTasks.forEach(t=>text+=`・${t.title} (予定: ${t.date||'未定'}, ${t.dur}分)\n`);else text+=`・(特になし)\n`;
   const growths=state.items.filter(i=>["growth","project"].includes(i.category));
-  text+=`\n■ 成長・目標領域（第2象限）\n`;
+  text+=`\n■ 成長・目標領域（B：重要だが緊急でない）\n`;
   if(growths.length)growths.forEach(i=>text+=`・${i.title} (${i.monthly}h/月)\n`);else text+=`・(特になし)\n`;
   document.getElementById('report-text').value=text;
 };
