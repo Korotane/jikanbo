@@ -438,7 +438,8 @@
     <div class="book" id="book-nav"></div>
     <div class="views">
       <button data-view="today">今日</button>
-      <button data-view="budget" class="on">収支</button>
+      <button data-view="schedule" class="on">予定</button>
+      <button data-view="monthly">月間</button>
       <button data-view="annual">年間</button>
       <button data-view="calendar">カレンダー</button>
       <button data-view="quad">4象限</button>
@@ -488,29 +489,10 @@
     </section>
   </div>
 
-  <div class="view on" id="v-budget">
+  <!-- 予定タブ：追加フォーム・一覧・タグ管理 -->
+  <div class="view on" id="v-schedule">
     <section class="panel">
-      <div class="panel-head"><span class="n">①②</span><h2>収入：使える時間</h2><span class="hint">睡眠・生活を除いた稼働可能時間</span></div>
-      <div class="panel-body"><div class="income"><label>1週間あたり</label><input id="income" type="number" min="0" step="1" value="40" style="width:100px;"> <span>時間</span><span class="calc" id="income-calc"></span></div></div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><span class="n">②</span><h2>収支サマリー（月）</h2><span class="hint">収入 −（固定＋定期＋成長＋仕込み＋移動＋準備）＝残高</span></div>
-      <div class="panel-body">
-        <div class="summary">
-          <div class="bigbal"><div class="lab">可処分残高 / バッファ</div><div class="val" id="bal-val">—</div><div class="note" id="bal-note"></div></div>
-          <div><div class="bar" id="bar"></div>
-            <div class="legend"><span><i class="i-fixed"></i>固定 <b class="v" id="lg-fixed">0h</b></span><span><i class="i-recurring"></i>定期 <b class="v" id="lg-recurring">0h</b></span><span><i class="i-growth"></i>成長 <b class="v" id="lg-growth">0h</b></span><span><i class="i-project"></i>目標 <b class="v" id="lg-project">0h</b></span><span><i class="i-travel"></i>移動 <b class="v" id="lg-travel">0h</b></span><span><i class="i-prep"></i>準備 <b class="v" id="lg-prep">0h</b></span><span><i class="i-balance"></i>残高 <b class="v" id="lg-balance">0h</b></span></div>
-          </div>
-        </div>
-        <div class="cust-bar">
-          <div class="view-sw"><button class="vsw on" id="vsw-kind">種別</button><button class="vsw" id="vsw-cust">顧客別</button></div>
-          <div id="cust-filter-bar"></div>
-        </div>
-        <div id="budget-groups"></div>
-      </div>
-    </section>
-    <section class="panel">
-      <div class="panel-head"><h2>予定を追加</h2></div>
+      <div class="panel-head"><span class="n">＋</span><h2>予定を追加</h2></div>
       <div class="panel-body">
         <div class="form-grid">
           <div class="field c3"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw on" id="freq-rep">繰り返し</button><button class="vsw" id="freq-once">一回のみ</button></div></div>
@@ -534,6 +516,15 @@
       </div>
     </section>
     <section class="panel">
+      <div class="panel-head"><span class="n">一覧</span><h2>予定一覧</h2>
+        <div class="view-sw" style="margin-left:auto"><button class="vsw on" id="vsw-kind">種別</button><button class="vsw" id="vsw-cust">顧客別</button></div>
+      </div>
+      <div class="panel-body">
+        <div id="cust-filter-bar"></div>
+        <div id="budget-groups"></div>
+      </div>
+    </section>
+    <section class="panel">
       <div class="panel-head"><span class="n">#</span><h2>タグ管理</h2><span class="hint">予定の分類に使うタグを追加・削除</span></div>
       <div class="panel-body">
         <div id="tag-list" class="tag-list"></div>
@@ -542,6 +533,25 @@
           <div id="tag-icons" class="icon-swatches"></div>
           <div id="tag-swatches" class="swatches"></div>
           <button class="btn sm" id="add-tag">タグを追加</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 月間タブ：時間収支サマリー -->
+  <div class="view" id="v-monthly">
+    <section class="panel">
+      <div class="panel-head"><span class="n">設定</span><h2>可処分時間の設定</h2><span class="hint">睡眠・生活を除いた稼働可能時間</span></div>
+      <div class="panel-body"><div class="income"><label>1週間あたり</label><input id="income" type="number" min="0" step="1" value="40" style="width:100px;"> <span>時間</span><span class="calc" id="income-calc"></span></div></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="n">月間</span><h2>時間収支（月）</h2><span class="hint">収入 −（固定＋定期＋成長＋目標＋移動＋準備）＝残高</span></div>
+      <div class="panel-body">
+        <div class="summary">
+          <div class="bigbal"><div class="lab">可処分残高 / バッファ</div><div class="val" id="bal-val">—</div><div class="note" id="bal-note"></div></div>
+          <div><div class="bar" id="bar"></div>
+            <div class="legend"><span><i class="i-fixed"></i>固定 <b class="v" id="lg-fixed">0h</b></span><span><i class="i-recurring"></i>定期 <b class="v" id="lg-recurring">0h</b></span><span><i class="i-growth"></i>成長 <b class="v" id="lg-growth">0h</b></span><span><i class="i-project"></i>目標 <b class="v" id="lg-project">0h</b></span><span><i class="i-travel"></i>移動 <b class="v" id="lg-travel">0h</b></span><span><i class="i-prep"></i>準備 <b class="v" id="lg-prep">0h</b></span><span><i class="i-balance"></i>残高 <b class="v" id="lg-balance">0h</b></span></div>
+          </div>
         </div>
       </div>
     </section>
@@ -715,7 +725,7 @@ function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b
 
 let state=load();
 let calY=today.getFullYear(),calM=today.getMonth(),calMode="month";
-let active="budget";
+let active="schedule";
 let todayMode="today"; // "today" | "week"
 
 /* 読み取り専用互換レイヤー。items/windowsはグローバル、events/tasksはactiveContextでフィルタ */
@@ -1206,31 +1216,39 @@ function renderWeek(){
 
 /* ====== 収支 ====== */
 function renderBudget(){
-  document.getElementById("income").value=state.income;
-  const incomeMonth=state.income*WPM;document.getElementById("income-calc").textContent=`月換算 ≈ ${incomeMonth.toFixed(0)}h`;
+  const incomeMonth=state.income*WPM;
   const f=sumKind(state.items,"fixed"),r=sumKind(state.items,"recurring"),g=sumKind(state.items,"growth"),pj=sumKind(state.items,"project"),tr=sumKind(state.items,"travel"),p=prepLoadThisMonth();
   const used=f+r+g+pj+tr+p,bal=incomeMonth-used;
-  const bv=document.getElementById("bal-val");bv.innerHTML=`${bal>=0?"":"−"}${Math.abs(bal).toFixed(1)}<small> h/月</small>`;bv.className="val"+(bal<0?" neg":"");
-  const note=document.getElementById("bal-note");note.textContent=bal>=0?`このペースなら月 ${bal.toFixed(1)}h の余白があります。`:`月 ${Math.abs(bal).toFixed(1)}h の超過です。成長・目標を見直しましょう。`;
-  const total=Math.max(incomeMonth,used),pct=x=>total>0?x/total*100:0;const bar=document.getElementById("bar");bar.innerHTML="";
-  [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr],["prep",p],["balance",Math.max(bal,0)]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=pct(val)+"%";s.title=`${k}: ${val.toFixed(1)}h`;bar.appendChild(s);});
-  document.getElementById("lg-fixed").textContent=f.toFixed(1)+"h";document.getElementById("lg-recurring").textContent=r.toFixed(1)+"h";document.getElementById("lg-growth").textContent=g.toFixed(1)+"h";document.getElementById("lg-project").textContent=pj.toFixed(1)+"h";document.getElementById("lg-travel").textContent=tr.toFixed(1)+"h";document.getElementById("lg-prep").textContent=p.toFixed(1)+"h";document.getElementById("lg-balance").textContent=Math.max(bal,0).toFixed(1)+"h";
-  // 顧客フィルターバー
+  // 月間タブ要素（表示中でなければ null）
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  const incEl=document.getElementById("income");if(incEl)incEl.value=state.income;
+  set("income-calc",`月換算 ≈ ${incomeMonth.toFixed(0)}h`);
+  const bv=document.getElementById("bal-val");
+  if(bv){bv.innerHTML=`${bal>=0?"":"−"}${Math.abs(bal).toFixed(1)}<small> h/月</small>`;bv.className="val"+(bal<0?" neg":"");}
+  const note=document.getElementById("bal-note");
+  if(note)note.textContent=bal>=0?`このペースなら月 ${bal.toFixed(1)}h の余白があります。`:`月 ${Math.abs(bal).toFixed(1)}h の超過です。成長・目標を見直しましょう。`;
+  const barEl=document.getElementById("bar");
+  if(barEl){const total=Math.max(incomeMonth,used),pct=x=>total>0?x/total*100:0;barEl.innerHTML="";[["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr],["prep",p],["balance",Math.max(bal,0)]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=pct(val)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});}
+  set("lg-fixed",f.toFixed(1)+"h");set("lg-recurring",r.toFixed(1)+"h");set("lg-growth",g.toFixed(1)+"h");set("lg-project",pj.toFixed(1)+"h");set("lg-travel",tr.toFixed(1)+"h");set("lg-prep",p.toFixed(1)+"h");set("lg-balance",Math.max(bal,0).toFixed(1)+"h");
+  // 予定タブ要素（表示中でなければ null）
   const allCusts=[...new Set(state.items.map(custKey))].sort((a,b)=>a.localeCompare(b,"ja"));
   const fb=document.getElementById("cust-filter-bar");
   if(fb){const chips=[{k:null,l:"すべて"},...allCusts.map(c=>({k:c,l:c}))];fb.innerHTML='<div class="cust-chips">'+chips.map(c=>`<button class="cust-chip${budgetCustFilter===c.k?' on':''}" data-k="${c.k||''}">${esc(c.l)}</button>`).join('')+'</div>';fb.querySelectorAll(".cust-chip").forEach(b=>b.onclick=()=>{budgetCustFilter=b.dataset.k||null;renderBudget();});}
-  // グループ描画
-  const filtered=budgetCustFilter?state.items.filter(i=>custKey(i)===budgetCustFilter):state.items;
   const grpEl=document.getElementById("budget-groups");
-  if(budgetView==="kind"){
-    grpEl.innerHTML=["fixed","recurring","growth","project","travel"].map(cat=>{const list=filtered.filter(i=>i.category===cat);const h=list.reduce((a,i)=>a+monthlyHours(i),0);return `<div class="group"><h3>${esc(CAT_LABELS[cat]||cat)}<span class="sum">${h.toFixed(1)}h/月</span></h3><div>${list.length?list.map(itemHTML).join(''):'<div class="empty">なし</div>'}</div></div>`;}).join("");
-  }else{
-    const grps={};filtered.forEach(i=>{const k=custKey(i);(grps[k]=grps[k]||[]).push(i);});
-    const keys=Object.keys(grps).sort((a,b)=>a.localeCompare(b,"ja"));
-    grpEl.innerHTML=keys.length?keys.map(k=>{const list=grps[k];const h=list.reduce((a,i)=>a+monthlyHours(i),0);return `<div class="group"><h3>${esc(k)}<span class="sum">${h.toFixed(1)}h/月</span></h3><div>${list.map(itemHTML).join('')}</div></div>`;}).join(''):'<div class="empty">予定がありません</div>';
+  if(grpEl){
+    const filtered=budgetCustFilter?state.items.filter(i=>custKey(i)===budgetCustFilter):state.items;
+    if(budgetView==="kind"){
+      grpEl.innerHTML=["fixed","recurring","growth","project","travel"].map(cat=>{const list=filtered.filter(i=>i.category===cat);const h=list.reduce((a,i)=>a+monthlyHours(i),0);return `<div class="group"><h3>${esc(CAT_LABELS[cat]||cat)}<span class="sum">${h.toFixed(1)}h/月</span></h3><div>${list.length?list.map(itemHTML).join(''):'<div class="empty">なし</div>'}</div></div>`;}).join("");
+    }else{
+      const grps={};filtered.forEach(i=>{const k=custKey(i);(grps[k]=grps[k]||[]).push(i);});
+      const keys=Object.keys(grps).sort((a,b)=>a.localeCompare(b,"ja"));
+      grpEl.innerHTML=keys.length?keys.map(k=>{const list=grps[k];const h=list.reduce((a,i)=>a+monthlyHours(i),0);return `<div class="group"><h3>${esc(k)}<span class="sum">${h.toFixed(1)}h/月</span></h3><div>${list.map(itemHTML).join('')}</div></div>`;}).join(''):'<div class="empty">予定がありません</div>';
+    }
+    grpEl.querySelectorAll(".item .del").forEach(btn=>btn.onclick=()=>{state.items=state.items.filter(i=>i.id!==btn.dataset.id);save();renderBudget();renderQuad();});
   }
-  grpEl.querySelectorAll(".item .del").forEach(btn=>btn.onclick=()=>{state.items=state.items.filter(i=>i.id!==btn.dataset.id);save();renderBudget();renderQuad();});
 }
+function renderSchedule(){renderBudget();renderSwatches();renderIconSwatches();renderTags();}
+function renderMonthly(){renderBudget();}
 const VIS_LABEL={busy:"◐ 多忙",private:"● 非公開"};
 function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button><span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
 function metaLabel(it){
@@ -1753,7 +1771,8 @@ function renderActive(){
     document.getElementById("summary-panel-title").textContent=todayMode==="week"?"週次サマリー":"朝サマリー";
     if(todayMode==="week")renderWeek();else renderToday();
   }
-  else if(active==="budget"){renderBudget();renderSwatches();renderIconSwatches();renderTags();}
+  else if(active==="schedule")renderSchedule();
+  else if(active==="monthly")renderMonthly();
   else if(active==="annual")renderAnnual();
   else if(active==="calendar")renderCalendar();
   else if(active==="quad"){renderFilter();renderQuad();}
