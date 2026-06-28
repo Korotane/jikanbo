@@ -784,6 +784,22 @@
       </div>
     </section>
     <section class="panel">
+      <div class="panel-head"><span class="n">↕</span><h2>クラウド同期</h2><span class="hint">GitHub Gist でデバイス間データ共有</span></div>
+      <div class="panel-body">
+        <div style="margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.6">
+          PCでアップロード → スマホで同じGist IDを入力してダウンロード、の手順でデータを共有します。<br>
+          トークンは <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--plan)">GitHub → Settings → Developer settings → Personal access tokens</a> で <b>gist スコープ</b>のみ付与して発行してください。
+        </div>
+        <div class="dlg-field" style="margin-bottom:8px"><label>GitHub トークン（gist スコープ）</label><input id="sync-pat" type="password" placeholder="ghp_xxxx…" style="width:100%;box-sizing:border-box"></div>
+        <div class="dlg-field" style="margin-bottom:12px"><label>Gist ID <span style="font-weight:400;color:var(--muted)">（初回アップロード後に自動入力。他デバイスでは手動入力）</span></label><input id="sync-gist-input" type="text" placeholder="（アップロード後に自動設定）" style="width:100%;box-sizing:border-box"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="sync-up-btn" class="btn plan">↑ アップロード（PC→クラウド）</button>
+          <button id="sync-dn-btn" class="btn ghost">↓ ダウンロード（クラウド→このデバイス）</button>
+        </div>
+        <div id="sync-status" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+    </section>
+    <section class="panel">
       <div class="panel-head"><span class="n">📝</span><h2>報告書の自動生成</h2></div>
       <div class="panel-body">
         <textarea id="report-text" readonly style="min-height:240px; margin-bottom:16px;"></textarea>
@@ -2120,6 +2136,57 @@ document.getElementById('copy-report').onclick=()=>{
   const btn=document.getElementById('copy-report');btn.textContent="コピーしました";setTimeout(()=>btn.textContent="クリップボードにコピー",2000);
 };
 window._clChk=function(el,k){localStorage.setItem(k,el.checked?"1":"0");el.closest(".cl-row").classList.toggle("done",el.checked);};
+
+/* ── クラウド同期（GitHub Gist） ── */
+const SYNC_PAT_KEY='jikanbo.syncpat';
+const SYNC_GIST_KEY='jikanbo.syncgist';
+function _syncStatus(msg,ok){const el=document.getElementById('sync-status');if(el){el.textContent=msg;el.style.color=ok===false?'var(--over)':ok===true?'var(--growth)':'var(--muted)';}}
+function _syncUI(){
+  const pat=localStorage.getItem(SYNC_PAT_KEY)||'';
+  const gid=localStorage.getItem(SYNC_GIST_KEY)||'';
+  const patEl=document.getElementById('sync-pat');const gEl=document.getElementById('sync-gist-input');
+  if(patEl&&!patEl.value)patEl.value=pat;
+  if(gEl&&!gEl.value)gEl.value=gid;
+}
+async function syncUp(){
+  const patEl=document.getElementById('sync-pat');const gEl=document.getElementById('sync-gist-input');
+  const pat=(patEl&&patEl.value.trim())||localStorage.getItem(SYNC_PAT_KEY)||'';
+  if(!pat){_syncStatus('GitHubトークンを入力してください',false);return;}
+  if(pat)localStorage.setItem(SYNC_PAT_KEY,pat);
+  const gid=(gEl&&gEl.value.trim())||localStorage.getItem(SYNC_GIST_KEY)||'';
+  _syncStatus('アップロード中…');
+  try{
+    const body={description:'jikanbo sync data',public:false,files:{'jikanbo-data.json':{content:JSON.stringify(state)}}};
+    const url=gid?`https://api.github.com/gists/${gid}`:'https://api.github.com/gists';
+    const res=await fetch(url,{method:gid?'PATCH':'POST',headers:{'Authorization':'token '+pat,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!res.ok){const t=await res.text();_syncStatus('エラー: '+res.status+' '+t.slice(0,80),false);return;}
+    const data=await res.json();
+    localStorage.setItem(SYNC_GIST_KEY,data.id);
+    if(gEl)gEl.value=data.id;
+    _syncStatus('✓ アップロード完了 ('+new Date().toLocaleTimeString()+')  Gist ID: '+data.id,true);
+  }catch(e){_syncStatus('エラー: '+e.message,false);}
+}
+async function syncDown(){
+  const patEl=document.getElementById('sync-pat');const gEl=document.getElementById('sync-gist-input');
+  const pat=(patEl&&patEl.value.trim())||localStorage.getItem(SYNC_PAT_KEY)||'';
+  const gid=(gEl&&gEl.value.trim())||localStorage.getItem(SYNC_GIST_KEY)||'';
+  if(!pat){_syncStatus('GitHubトークンを入力してください',false);return;}
+  if(!gid){_syncStatus('Gist IDを入力してください',false);return;}
+  if(pat)localStorage.setItem(SYNC_PAT_KEY,pat);
+  localStorage.setItem(SYNC_GIST_KEY,gid);
+  _syncStatus('ダウンロード中…');
+  try{
+    const res=await fetch('https://api.github.com/gists/'+gid,{headers:{'Authorization':'token '+pat}});
+    if(!res.ok){_syncStatus('エラー: '+res.status,false);return;}
+    const data=await res.json();
+    const content=data.files&&data.files['jikanbo-data.json']&&data.files['jikanbo-data.json'].content;
+    if(!content){_syncStatus('jikanbo-data.json が見つかりません',false);return;}
+    const newState=JSON.parse(content);
+    Object.assign(state,newState);
+    save();renderBookNav();renderTags();renderActive();
+    _syncStatus('✓ ダウンロード完了 ('+new Date().toLocaleTimeString()+')',true);
+  }catch(e){_syncStatus('エラー: '+e.message,false);}
+}
 function kindMark(k){return {fixed:"［固定］",recurring:"［定期］",invest:"［投資］",growth:"［成長］",project:"［目標］",travel:"［移動］"}[k]||"";}
 function rrule(it){switch(it.rep){case "weekly":return "FREQ=WEEKLY;BYDAY="+it.day;case "biweekly":return "FREQ=WEEKLY;INTERVAL=2;BYDAY="+it.day;case "monthly-date":return "FREQ=MONTHLY;BYMONTHDAY="+it.mday;case "n-monthly":return "FREQ=MONTHLY;INTERVAL="+(it.interval||2)+";BYMONTHDAY="+(it.mday||1);case "monthly-nth":return "FREQ=MONTHLY;BYDAY="+it.nth+it.day;case "yearly":return "FREQ=YEARLY;BYMONTH="+it.month+";BYMONTHDAY="+it.mday;}}
 function firstOcc(it){const[hh,mm]=(it.time||"09:00").split(":").map(Number);const now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);if(it.rep==="weekly"){const t=DAYIDX[it.day];while(d.getDay()!==t||d<now)d.setDate(d.getDate()+1);}else if(it.rep==="monthly-date"){d.setDate(it.mday);if(d<now)d.setMonth(d.getMonth()+1);}else if(it.rep==="monthly-nth"){d=nthWd(now.getFullYear(),now.getMonth(),it.nth,it.day,hh,mm);if(d<now)d=nthWd(now.getFullYear(),now.getMonth()+1,it.nth,it.day,hh,mm);}else if(it.rep==="yearly"){d=new Date(now.getFullYear(),it.month-1,it.mday,hh,mm,0);if(d<now)d.setFullYear(d.getFullYear()+1);}return {start:d,end:new Date(d.getTime()+(it.dur||60)*60000)};}
@@ -2313,6 +2380,10 @@ function renderActive(){
     const priv=state.items.filter(i=>i.rep&&(i.visibility||"public")==="private").length;
     document.getElementById("export-count").textContent=`予定${n}件（公開${pub}・多忙${busy}・非公開${priv}）／年間予定${state.windows.length}件・目標${state.events.length}件・MS${pn}件`;
     document.getElementById('gen-report').click();
+    // 同期UI初期化
+    _syncUI();
+    const upBtn=document.getElementById('sync-up-btn');const dnBtn=document.getElementById('sync-dn-btn');
+    if(upBtn)upBtn.onclick=syncUp;if(dnBtn)dnBtn.onclick=syncDown;
   }
 }
 document.querySelectorAll(".views button").forEach(b=>b.onclick=()=>{active=b.dataset.view;renderActive();});
