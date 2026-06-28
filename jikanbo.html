@@ -313,26 +313,31 @@
   .qtask:hover { box-shadow: var(--shadow); }
   .qtask.draggable { cursor: default; }
   .qtask.manual,.qtask.item-row { flex-direction: column; align-items: stretch; gap: 4px; }
-  /* qrow.top は flex コンテナなので min-width:0 を明示しないと min-content 幅でブロックされる */
-  .qtask.manual > .qrow.top, .qtask.item-row > .qrow.top { min-width: 0; overflow: hidden; }
-  .qtask.manual > .qrow.top .qt, .qtask.item-row > .qrow.top .qt { flex:1 1 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  /* qrow.top を CSS Grid に変更：flex の min-content 問題を回避してタイトルを確実に表示 */
+  .qtask.item-row > .qrow.top { display:grid; grid-template-columns:auto auto auto auto 1fr; align-items:center; gap:8px; overflow:hidden; }
+  .qtask.manual > .qrow.top   { display:grid; grid-template-columns:auto auto auto auto 1fr; align-items:center; gap:8px; overflow:hidden; }
+  .qtask.item-row > .qrow.top .qt, .qtask.manual > .qrow.top .qt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .qrow { display: flex; align-items: center; gap: 8px; }
-  /* ドラッグハンドル：PC通常サイズ、モバイルは 44px 以上のタッチターゲット */
-  .drag-handle { color: var(--line-strong); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; padding: 2px 6px; opacity: 0.6; transition: opacity 0.15s; flex-shrink:0; }
-  @media(pointer:coarse){ .drag-handle { font-size:20px; padding:12px 14px; opacity:0.8; } }
+  /* ドラッグハンドル：PC 通常サイズ、タッチデバイスは 48px 以上のターゲット */
+  .drag-handle { color: var(--line-strong); font-size: 15px; line-height: 1; cursor: grab; touch-action: none; padding: 2px 6px; opacity: 0.6; transition: opacity 0.15s; }
+  @media(pointer:coarse){ .drag-handle { font-size:22px; padding:14px 20px; opacity:0.85; } }
   .qtask:hover .drag-handle { opacity: 1; }
   .qtask.manual-done { opacity: 0.45; }
   .qtask.manual-done .qt { text-decoration: line-through; }
-  .qtask .star { cursor: pointer; font-size: 14px; border: none; background: none; color: var(--line-strong); padding: 4px; transition: color 0.15s; border-radius: 4px; flex-shrink:0; }
+  .qtask .star { cursor: pointer; font-size: 14px; border: none; background: none; color: var(--line-strong); padding: 4px; transition: color 0.15s; border-radius: 4px; }
   .qtask .star:hover { background: var(--surface-2); }
   .qtask .star.on { color: var(--plan); }
   .qtask .star.urg.on { color: var(--over); }
-  .qtask .qt { flex: 1 1 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .qkind { font-size: 10px; font-weight: 600; color: #fff; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink:0; }
+  .qtask .qt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qkind { font-size: 10px; font-weight: 600; color: #fff; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
   .qkind.k-fixed { background: var(--fixed); } .qkind.k-recurring { background: var(--plan); } .qkind.k-invest { background: var(--invest); } .qkind.k-anchor { background: var(--ember); } .qkind.k-prep { background: var(--active); }
   .qkind.k-growth { background: var(--growth); } .qkind.k-project { background: var(--project); } .qkind.k-travel { background: var(--travel); }
-  .qtask .qd { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: auto; flex-shrink:0; }
-  .qrow.bot { gap: 6px; opacity: 0.85; }
+  .qtask .qd { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: auto; }
+  .qrow.bot { gap: 6px; opacity: 0.85; flex-wrap: wrap; }
+  /* 4象限 文脈フィルタ */
+  .quad-ctx-filter { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .quad-ctx-btn { font-size:11px; font-weight:600; padding:3px 9px; border-radius:12px; border:1px solid var(--line-strong); background:var(--surface-2); color:var(--muted); cursor:pointer; }
+  .quad-ctx-btn.on { background:var(--plan); color:#fff; border-color:var(--plan); }
   .qrow.bot input[type="date"] { width: 130px; padding: 4px 6px; font-size: 12px; }
   .qrow.bot input[type="number"] { width: 56px; padding: 4px 6px; font-size: 12px; }
   .qrow.bot .mini-del { margin-left: auto; }
@@ -813,6 +818,7 @@
     <section class="panel">
       <div class="panel-head"><span class="n">▦</span><h2>優先度マトリクス（ABCD）＋ インボックス</h2><span class="hint">カードをドラッグして整理</span></div>
       <div class="panel-body">
+        <div id="quad-ctx-filter" class="quad-ctx-filter"></div>
         <div id="tag-filter" class="tag-filter"></div>
         <div class="quad-grid">
           <div class="quad" data-q="1" data-drop="quad"><div class="qlabel"><span class="ql-alpha qa">A</span><span class="ql-txt">重要で緊急</span></div><div class="qbox" data-q="1"></div></div>
@@ -2192,7 +2198,20 @@ function openQuickAdd(dateStr){
 }
 
 /* ====== 4象限 ====== */
+let quadCtxFilter=null; // null=全予定, contextId string=特定文脈
 function isUrgent(due){if(!due)return false;return (due-today)/DAY<=14;}
+
+function renderQuadCtxFilter(){
+  const wrap=document.getElementById('quad-ctx-filter');if(!wrap)return;
+  const ctxs=[{id:null,name:"全予定"},...(state.contexts||[])];
+  wrap.innerHTML=ctxs.map(c=>{
+    const on=c.id===quadCtxFilter;
+    const colStyle=c.color&&c.id&&on?`background:${c.color};border-color:${c.color};`:'';
+    return `<button class="quad-ctx-btn${on?' on':''}" data-ctx="${c.id||''}" style="${colStyle}">${esc(c.name)}</button>`;
+  }).join('');
+  wrap.querySelectorAll('button').forEach(b=>b.onclick=()=>{quadCtxFilter=b.dataset.ctx||null;renderQuadCtxFilter();renderQuad();});
+}
+
 function renderQuad(){
   const allTasks=[];
   state.items.forEach(it=>{
@@ -2204,9 +2223,18 @@ function renderQuad(){
     allTasks.push({id:t.id,type:'manual',title:t.title,due:t.date?ymd(t.date):null,kind:'manual',important:t.important,urgent:t.urgent,draggable:true,done:t.done,data:t,tags:t.tags||[]});
   });
 
-  const ft=state.filterTags||[];
+  // 文脈フィルタ
   let tasks=allTasks;
-  if(ft.length){tasks=allTasks.filter(t=>(t.type==='manual'||t.type==='item')&&(t.tags||[]).some(x=>ft.includes(x)));}
+  if(quadCtxFilter){
+    const fCtx=state.contexts.find(c=>c.id===quadCtxFilter);
+    tasks=allTasks.filter(t=>{
+      if(t.type==='item'){return itemMatchesCtx(t.data,fCtx||{id:quadCtxFilter});}
+      return t.data.contextId===quadCtxFilter;
+    });
+  }
+
+  const ft=state.filterTags||[];
+  if(ft.length){tasks=tasks.filter(t=>(t.tags||[]).some(x=>ft.includes(x)));}
 
   const buckets={1:[],2:[],3:[],4:[]};
   tasks.forEach(t=>{const q=t.important?(t.urgent?1:2):(t.urgent?3:4);buckets[q].push(t);});
@@ -2218,6 +2246,8 @@ function renderQuad(){
         if(t.type==='manual'){
           const doneClass=t.done?'manual-done':'';
           const dur=t.data.dur||30;
+          const tCtx=t.data.contextId?(state.contexts.find(c=>c.id===t.data.contextId)):null;
+          const ctxBadge=tCtx?`<span class="cust-badge other" style="background:${tCtx.color||'var(--muted)'}">${esc(tCtx.name)}</span>`:'';
           return `<div class="qtask manual draggable ${doneClass}" data-type="manual" data-id="${t.id}">
             <div class="qrow top">
               <span class="drag-handle">⋮⋮</span>
@@ -2226,11 +2256,10 @@ function renderQuad(){
               <input type="checkbox" ${t.done?'checked':''} onchange="toggleMeta('manual','${t.id}','done')">
               <span class="qt">${esc(t.title)}</span>
             </div>
-            ${tagChips(t.tags)}
             <div class="qrow bot">
+              ${ctxBadge}${tagChips(t.tags)}
               <input type="date" value="${t.data.date||''}" onchange="setMeta('manual','${t.id}','date',this.value)">
               <input type="number" step="15" value="${dur}" onchange="setMeta('manual','${t.id}','dur',this.value)" title="所要時間(分)">分
-              <input type="number" step="5" value="${t.data.estimate||''}" placeholder="見積(分)" onchange="setMeta('manual','${t.id}','estimate',this.value)" title="見積もり時間(分)" style="width:64px">
               <button class="tagbtn" onclick="openTagMenu(this,'manual','${t.id}')">＋タグ</button>
               <button class="mini-edit" onclick="openEdit('manual','${t.id}')">✎</button>
               <button class="mini-del" onclick="delTask('${t.id}')">×</button>
@@ -2238,6 +2267,8 @@ function renderQuad(){
           </div>`;
         }else{
           const dur=t.data.dur||60;
+          const ct=t.data.customerType||'internal';
+          const ctxBadge=`<span class="cust-badge ${ct}">${esc(customerLabel(t.data))}</span>`;
           return `<div class="qtask item-row draggable" data-type="item" data-id="${t.id}">
             <div class="qrow top">
               <span class="drag-handle">⋮⋮</span>
@@ -2247,7 +2278,7 @@ function renderQuad(){
               <span class="qt">${esc(t.title)}</span>
             </div>
             <div class="qrow bot">
-              ${tagChips(t.tags)}
+              ${ctxBadge}${tagChips(t.tags)}
               <button class="tagbtn" onclick="openTagMenu(this,'item','${t.id}')">＋タグ</button>
               <span class="qd">${dur}分/回</span>
               <button class="mini-edit" onclick="openEdit('item','${t.id}')">✎</button>
@@ -2598,7 +2629,7 @@ function renderActive(){
   else if(active==="monthly")renderMonthly();
   else if(active==="annual")renderAnnual();
   else if(active==="calendar")renderCalendar();
-  else if(active==="quad"){renderFilter();renderQuad();}
+  else if(active==="quad"){renderQuadCtxFilter();renderFilter();renderQuad();}
   else if(active==="analysis")renderAnalysis();
   else if(active==="estimate")renderEstimate();
   else if(active==="export"){
