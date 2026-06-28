@@ -1251,13 +1251,21 @@ function renderToday(){
   if(surplus>0){const s=document.createElement("div");s.className="seg";s.style.cssText=`width:${surplus/total*100}%;background:var(--balance);opacity:0.4`;bar.appendChild(s);}
   // 予定リスト
   const itemsList=document.getElementById("today-items-list");
+  const _chkKey=(id,i)=>`jk-chk-${id}-${iso(today)}-${i}`;
   if(!todayItems.length){itemsList.innerHTML='<div class="today-empty">今日は繰り返し予定がありません。</div>';}
-  const _chkKey=id=>`jk-chk-${id}-${iso(today)}`;
   else{itemsList.innerHTML=todayItems.map(it=>{
     const ct=it.customerType||"internal";
     const dur=it.dur?`${it.dur}分`:"";
     const color=CAT_COLOR[it.category]||"var(--muted)";
-    const cl=it.checklist?.length?`<button class="cl-toggle" onclick="(()=>{const d=document.getElementById('tcl-${it.id}');d.style.display=d.style.display==='none'?'block':'none';})()">📋 ${it.checklist.length}ステップ</button><div class="today-cl" id="tcl-${it.id}">${it.checklist.map((s,i)=>{const k=_chkKey(it.id)+'-'+i;const done=localStorage.getItem(k)==='1';return `<label class="cl-row${done?' done':''}"><input type="checkbox"${done?' checked':''} onchange="(()=>{localStorage.setItem('${k}',this.checked?'1':'0');this.closest('.cl-row').classList.toggle('done',this.checked);})()"><span>${esc(s)}</span></label>`;}).join('')}</div>`:''
+    let cl="";
+    if(it.checklist?.length){
+      const rows=it.checklist.map((s,i)=>{
+        const k=_chkKey(it.id,i);
+        const done=localStorage.getItem(k)==="1";
+        return `<label class="cl-row${done?" done":""}"><input type="checkbox"${done?" checked":""} onchange="window._clChk(this,'${k}')"><span>${esc(s)}</span></label>`;
+      }).join("");
+      cl=`<button class="cl-toggle" onclick="var d=document.getElementById('tcl-${it.id}');d.style.display=d.style.display==='none'?'block':'none'">📋 ${it.checklist.length}ステップ</button><div class="today-cl" id="tcl-${it.id}">${rows}</div>`;
+    }
     return `<div class="today-row" style="flex-wrap:wrap"><span class="today-t">${it.time||"―"}</span><span class="today-mk" style="color:${color}">${KMARK[it.category]||"▪"}</span><span class="cust-badge ${ct}" style="font-size:9px;padding:1px 6px;">${esc(customerLabel(it))}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${dur}</span>${cl}</div>`;
   }).join("");}
   // ゴール・マイルストーンリスト
@@ -2106,6 +2114,7 @@ document.getElementById('copy-report').onclick=()=>{
   const ta=document.getElementById('report-text');ta.select();document.execCommand('copy');
   const btn=document.getElementById('copy-report');btn.textContent="コピーしました";setTimeout(()=>btn.textContent="クリップボードにコピー",2000);
 };
+window._clChk=function(el,k){localStorage.setItem(k,el.checked?"1":"0");el.closest(".cl-row").classList.toggle("done",el.checked);};
 function kindMark(k){return {fixed:"［固定］",recurring:"［定期］",invest:"［投資］",growth:"［成長］",project:"［目標］",travel:"［移動］"}[k]||"";}
 function rrule(it){switch(it.rep){case "weekly":return "FREQ=WEEKLY;BYDAY="+it.day;case "biweekly":return "FREQ=WEEKLY;INTERVAL=2;BYDAY="+it.day;case "monthly-date":return "FREQ=MONTHLY;BYMONTHDAY="+it.mday;case "n-monthly":return "FREQ=MONTHLY;INTERVAL="+(it.interval||2)+";BYMONTHDAY="+(it.mday||1);case "monthly-nth":return "FREQ=MONTHLY;BYDAY="+it.nth+it.day;case "yearly":return "FREQ=YEARLY;BYMONTH="+it.month+";BYMONTHDAY="+it.mday;}}
 function firstOcc(it){const[hh,mm]=(it.time||"09:00").split(":").map(Number);const now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);if(it.rep==="weekly"){const t=DAYIDX[it.day];while(d.getDay()!==t||d<now)d.setDate(d.getDate()+1);}else if(it.rep==="monthly-date"){d.setDate(it.mday);if(d<now)d.setMonth(d.getMonth()+1);}else if(it.rep==="monthly-nth"){d=nthWd(now.getFullYear(),now.getMonth(),it.nth,it.day,hh,mm);if(d<now)d=nthWd(now.getFullYear(),now.getMonth()+1,it.nth,it.day,hh,mm);}else if(it.rep==="yearly"){d=new Date(now.getFullYear(),it.month-1,it.mday,hh,mm,0);if(d<now)d.setFullYear(d.getFullYear()+1);}return {start:d,end:new Date(d.getTime()+(it.dur||60)*60000)};}
