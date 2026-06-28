@@ -365,13 +365,20 @@
   .trend-val { flex: 1; font-size: 9px; font-family: var(--font-mono); text-align: center; color: var(--muted); }
   .trend-axis { border-top: 1px solid var(--line); margin-bottom: 2px; }
   /* ana-period-table */
-  .ana-period-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
-  .ana-period-table th { font-size: 10px; font-weight: 700; color: var(--muted); text-align: left; padding: 4px 6px; border-bottom: 2px solid var(--line); }
-  .ana-period-table td { padding: 6px 6px; border-bottom: 1px solid var(--line); }
-  .ana-period-table tr.active-period td { background: color-mix(in srgb, var(--active) 7%, transparent); }
-  .ana-period-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
-  .ana-period-add input[type=date],.ana-period-add input[type=number] { padding: 4px 6px; font-size: 12px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); }
-  .ana-period-add input[type=number] { width: 52px; }
+  /* Q3月別閾値グリッド */
+  .q3-month-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 6px; margin: 12px 0 8px; }
+  .q3-month-cell { background: var(--surface-2); border-radius: 8px; padding: 8px 4px 6px; text-align: center; border: 1px solid var(--line); transition: border-color .15s; }
+  .q3-month-cell.cur-month { border-color: var(--plan); background: color-mix(in srgb, var(--plan) 8%, transparent); }
+  .q3-month-cell .mc-name { font-size: 10px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+  .q3-month-cell.cur-month .mc-name { color: var(--plan); }
+  .q3-month-cell input[type=number] { width: 100%; text-align: center; font-family: var(--font-mono); font-size: 14px; font-weight: 700; border: none; background: transparent; color: var(--ink); padding: 0; -moz-appearance: textfield; }
+  .q3-month-cell input[type=number]::-webkit-inner-spin-button { display: none; }
+  .q3-month-cell input[type=number]:focus { outline: none; }
+  .q3-month-cell .mc-pct { font-size: 9px; color: var(--muted); margin-top: 2px; }
+  .q3-default-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .q3-default-row input[type=number] { width: 52px; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 4px; font-size: 12px; background: var(--surface); color: var(--ink); font-family: var(--font-mono); text-align: center; -moz-appearance: textfield; }
+  .q3-default-row input::-webkit-inner-spin-button { display: none; }
+  @media(max-width:500px){.q3-month-grid{grid-template-columns:repeat(4,1fr);}}
   @media(max-width:600px){.ana-q-grid{grid-template-columns:1fr;}}
 
   /* ドラッグ中のクローン */
@@ -538,7 +545,7 @@
     </section>
   </div>
 
-  <!-- 月間タブ：時間収支サマリー -->
+  <!-- 月間タブ：時間収支サマリー + Q3閾値設定 -->
   <div class="view" id="v-monthly">
     <section class="panel">
       <div class="panel-head"><span class="n">設定</span><h2>可処分時間の設定</h2><span class="hint">睡眠・生活を除いた稼働可能時間</span></div>
@@ -554,6 +561,10 @@
           </div>
         </div>
       </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><span class="n">Q3</span><h2>Q3警告の月別閾値</h2><span class="hint">この割合を超えると改善提案が表示されます</span></div>
+      <div class="panel-body" id="q3-monthly-body"></div>
     </section>
   </div>
 
@@ -893,13 +904,12 @@ function renderAnalysis(){
   state.tasks.forEach(t=>{const cid=t.contextId||"__none__";ctxH[cid]=(ctxH[cid]||0)+(t.dur||30)/60;});
   const totalCtxH=Object.values(ctxH).reduce((a,b)=>a+b,0)||1;
 
-  // Q3閾値：期間別設定が今日に一致すれば優先、なければグローバル
-  const todayISO=iso(today);
-  const periods=(state.q3Periods||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
-  const activePeriod=periods.find(p=>p.start<=todayISO&&p.end>=todayISO);
-  const q3ThrGlobal=state.q3Threshold||20;
-  const q3Thr=activePeriod?activePeriod.threshold:q3ThrGlobal;
-  const q3ThrSrc=activePeriod?`期間設定（${activePeriod.start}〜${activePeriod.end}）`:"グローバル設定";
+  // Q3閾値：月別設定があればそれを使い、なければデフォルト
+  const curM=today.getMonth()+1;
+  const q3ThrDefault=state.q3Threshold||20;
+  const q3Monthly=state.q3Monthly||{};
+  const q3Thr=q3Monthly[curM]!=null?q3Monthly[curM]:q3ThrDefault;
+  const q3ThrSrc=q3Monthly[curM]!=null?`${curM}月の設定`:`デフォルト（${curM}月は未設定）`;
 
   const q3Pct=totalQH>0?Math.round(qh.q3/totalQH*100):0;
   const q3Over=q3Pct>q3Thr&&state.tasks.length>0;
@@ -917,11 +927,11 @@ function renderAnalysis(){
   // 象限別
   const qDef=[{id:"q1",lbl:"Q1 重要×緊急",col:"var(--ember)"},{id:"q2",lbl:"Q2 重要×非緊急",col:"var(--fixed)"},{id:"q3",lbl:"Q3 緊急×非重要",col:"var(--active)"},{id:"q4",lbl:"Q4 非重要×非緊急",col:"var(--muted)"}];
   const qGrid=qDef.map(({id,lbl,col})=>{const h=qh[id],pct=Math.round(h/totalQH*100);return `<div class="ana-q-box" style="border-top:3px solid ${col}"><div class="ana-q-label" style="color:${col}">${lbl}</div><div class="ana-q-val">${h.toFixed(1)}h</div><div class="ana-q-pct">${pct}%</div></div>`;}).join("");
-  const thrNote=`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">有効閾値: <strong style="color:var(--ink)">${q3Thr}%</strong>（${q3ThrSrc}）</div>`;
+  const thrNote=`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">今月のQ3警告閾値: <strong style="color:var(--ink)">${q3Thr}%</strong>（${q3ThrSrc}） — <span style="cursor:pointer;text-decoration:underline;color:var(--plan)" onclick="document.querySelector('[data-view=monthly]').click()">月間タブで変更</span></div>`;
   const q3Alert=q3Over
     ?`<div class="ana-alert"><strong>Q3 過多を検出</strong>（現在 ${q3Pct}% ／ 閾値 ${q3Thr}%）<br>Q3（緊急×非重要）が多い状態は業務改善のサインです。<ul class="ana-suggest"><li>🔄 <strong>定型化・自動化</strong> — 繰り返しのQ3タスクをテンプレートやルーティンに</li><li>🤝 <strong>委任・依頼</strong> — 自分でなくてもよい緊急タスクを任せる</li><li>🔍 <strong>発生源を断つ</strong> — 「なぜ緊急になるか」の根本を探り、Q2（計画）へ移す</li></ul></div>`
     :(state.tasks.length>0?`<div class="ana-ok">Q3は閾値（${q3Thr}%）以内です。</div>`:"");
-  const quadSection=`<div class="ana-section"><div class="ana-section-hd">象限別時間（タスクベース）</div>${state.tasks.length===0?'<div class="ana-empty">タスクを追加すると象限分析が表示されます。</div>':`<div class="ana-q-grid">${qGrid}</div>${thrNote}<div class="ana-threshold"><strong>グローバル閾値:</strong><input type="range" id="q3-slider" min="5" max="50" step="5" value="${q3ThrGlobal}"><span id="q3-thr-val">${q3ThrGlobal}%</span></div>${q3Alert}${candList(q3Tasks,"Q3 削減候補（緊急×非重要）")}${candList(q4Tasks,"Q4 削減候補（非重要×非緊急）")}`}</div>`;
+  const quadSection=`<div class="ana-section"><div class="ana-section-hd">象限別時間（タスクベース）</div>${state.tasks.length===0?'<div class="ana-empty">タスクを追加すると象限分析が表示されます。</div>':`<div class="ana-q-grid">${qGrid}</div>${thrNote}${q3Alert}${candList(q3Tasks,"Q3 削減候補（緊急×非重要）")}${candList(q4Tasks,"Q4 削減候補（非重要×非緊急）")}`}</div>`;
 
   // タグ別
   const tagRows=Object.entries(tagH).sort((a,b)=>b[1]-a[1]).map(([tid,h])=>{const tag=state.tags.find(t=>t.id===tid);if(!tag)return "";const lbl=`${tag.icon||"◇"} ${tag.label||"（ラベルなし）"}`;return barRow(lbl,h,totalTagH,tag.color||"var(--muted)");}).filter(Boolean).join("");
@@ -930,10 +940,6 @@ function renderAnalysis(){
   // 文脈別
   const ctxRows=Object.entries(ctxH).sort((a,b)=>b[1]-a[1]).map(([cid,h])=>{const ctx=state.contexts.find(c=>c.id===cid);const lbl=ctx?esc(ctx.name):"（文脈なし）";const col=ctx&&ctx.color?ctx.color:"var(--muted)";return barRow(lbl,h,totalCtxH,col);}).join("");
   const ctxSection=`<div class="ana-section"><div class="ana-section-hd">文脈（クリップボード）別</div>${ctxRows||'<div class="ana-empty">文脈が設定された予定がありません。</div>'}</div>`;
-
-  // Q3閾値 期間別設定
-  const periodRows=periods.map(p=>{const isActive=p.start<=todayISO&&p.end>=todayISO;return `<tr class="${isActive?"active-period":""}"><td>${p.start}</td><td>${p.end}</td><td><strong>${p.threshold}%</strong>${isActive?' <span style="color:var(--active);font-size:10px">●適用中</span>':""}</td><td><button class="mini-del" onclick="_delQ3Period('${p.id}')">×</button></td></tr>`;}).join("");
-  const periodSection=`<div class="ana-section"><div class="ana-section-hd">Q3閾値 期間別設定 <span style="font-weight:400;text-transform:none;font-size:10px">（繁忙期は緩め・通常期は厳しめに）</span></div>${periods.length?`<table class="ana-period-table"><thead><tr><th>開始</th><th>終了</th><th>閾値</th><th></th></tr></thead><tbody>${periodRows}</tbody></table>`:`<div class="ana-empty" style="margin-bottom:10px">期間設定なし。グローバル閾値（${q3ThrGlobal}%）が適用されます。</div>`}<div class="ana-period-add"><input type="date" id="p-start"><span>〜</span><input type="date" id="p-end"><span>閾値:</span><input type="number" id="p-thr" min="5" max="50" step="5" value="30"><span>%</span><button class="btn" onclick="_addQ3Period()">＋追加</button></div></div>`;
 
   // ─── 週次トレンド（過去8週） ───
   const N_WEEKS=8;
@@ -960,21 +966,7 @@ function renderAnalysis(){
   const trendLbls=trendWeeks.map(({label,isCur})=>`<div class="trend-lbl${isCur?" cur-week":""}">${isCur?"今週":label}</div>`).join("");
   const trendSection=`<div class="ana-section"><div class="ana-section-hd">週次トレンド（過去${N_WEEKS}週・予定ベース）</div><div class="trend-vals">${trendVals}</div><div class="trend-chart">${trendCols}</div><div class="trend-axis"></div><div class="trend-labels">${trendLbls}</div></div>`;
 
-  body.innerHTML=catSection+trendSection+quadSection+tagSection+ctxSection+periodSection;
-
-  const slider=document.getElementById("q3-slider");
-  if(slider){
-    slider.oninput=()=>{document.getElementById("q3-thr-val").textContent=slider.value+"%";};
-    slider.onchange=()=>{state.q3Threshold=parseInt(slider.value);save();renderAnalysis();};
-  }
-  window._addQ3Period=()=>{
-    const s=document.getElementById("p-start").value,e=document.getElementById("p-end").value,t=parseInt(document.getElementById("p-thr").value);
-    if(!s||!e||isNaN(t)||s>e)return;
-    if(!state.q3Periods)state.q3Periods=[];
-    state.q3Periods.push({id:uid(),start:s,end:e,threshold:t});
-    save();renderAnalysis();
-  };
-  window._delQ3Period=id=>{state.q3Periods=(state.q3Periods||[]).filter(p=>p.id!==id);save();renderAnalysis();};
+  body.innerHTML=catSection+trendSection+quadSection+tagSection+ctxSection;
 }
 
 /* ====== 見積もり精度 ====== */
@@ -1248,7 +1240,69 @@ function renderBudget(){
   }
 }
 function renderSchedule(){renderBudget();renderSwatches();renderIconSwatches();renderTags();}
-function renderMonthly(){renderBudget();}
+
+function renderQ3Monthly(){
+  const el=document.getElementById("q3-monthly-body");if(!el)return;
+  const curM=today.getMonth()+1;
+  const def=state.q3Threshold||20;
+  const monthly=state.q3Monthly||{};
+  const MONTH_NAMES=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+
+  const cells=MONTH_NAMES.map((name,i)=>{
+    const m=i+1;
+    const hasOwn=monthly[m]!=null;
+    const val=hasOwn?monthly[m]:def;
+    const isCur=m===curM;
+    return `<div class="q3-month-cell${isCur?" cur-month":""}">
+      <div class="mc-name">${name}${isCur?" ●":""}</div>
+      <input type="number" min="5" max="60" step="5" value="${val}"
+        data-month="${m}"
+        style="${!hasOwn?"color:var(--muted)":""}"
+        onchange="window._setQ3Monthly(${m},this)"
+        oninput="this.style.color='var(--ink)'">
+      <div class="mc-pct">%</div>
+    </div>`;
+  }).join("");
+
+  const effectiveThr=monthly[curM]!=null?monthly[curM]:def;
+  el.innerHTML=`
+    <div class="q3-default-row">
+      <span>デフォルト（未設定月）:</span>
+      <input type="number" min="5" max="60" step="5" value="${def}"
+        onchange="window._setQ3Default(this)">
+      <span>%</span>
+      <span style="font-size:11px">— 個別に設定しない月に使われます</span>
+    </div>
+    <div class="q3-month-grid">${cells}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">
+      今月（${curM}月）の有効閾値: <strong style="color:var(--ink)" id="q3-cur-eff">${effectiveThr}%</strong>
+    </div>`;
+
+  window._setQ3Monthly=(m,input)=>{
+    if(!state.q3Monthly)state.q3Monthly={};
+    const n=parseInt(input.value);
+    if(isNaN(n)||n<5||n>60){input.value=state.q3Monthly[m]!=null?state.q3Monthly[m]:(state.q3Threshold||20);return;}
+    state.q3Monthly[m]=n;
+    save();
+    const eff=document.getElementById("q3-cur-eff");
+    if(eff&&m===curM)eff.textContent=n+"%";
+  };
+  window._setQ3Default=input=>{
+    const n=parseInt(input.value);
+    if(isNaN(n)||n<5||n>60){input.value=state.q3Threshold||20;return;}
+    state.q3Threshold=n;
+    save();
+    // デフォルト値を使っているセルの表示を更新
+    document.querySelectorAll(".q3-month-cell input[data-month]").forEach(inp=>{
+      const m=parseInt(inp.dataset.month);
+      if((state.q3Monthly||{})[m]==null){inp.value=n;}
+    });
+    const eff=document.getElementById("q3-cur-eff");
+    if(eff&&(state.q3Monthly||{})[curM]==null)eff.textContent=n+"%";
+  };
+}
+
+function renderMonthly(){renderBudget();renderQ3Monthly();}
 const VIS_LABEL={busy:"◐ 多忙",private:"● 非公開"};
 function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button><span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
 function metaLabel(it){
