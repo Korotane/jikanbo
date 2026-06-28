@@ -596,7 +596,7 @@
           <div class="field c3"><label for="f-kind">種別</label><select id="f-kind"><option value="fixed">固定（確定予定）</option><option value="recurring">定期（繰り返し）</option><option value="growth">成長（学習・スキル）</option><option value="project">目標（案件・コミット）</option><option value="travel">移動（通勤・出張）</option></select></div>
           <div class="field c5"><label for="f-title">予定名</label><input id="f-title" type="text" placeholder="例：定例ミーティング / 英語学習"></div>
           <div id="wrap-rep-fields">
-            <div class="field c4"><label for="f-rep">繰り返し</label><select id="f-rep"><option value="weekly">毎週</option><option value="monthly-date">毎月（日付）</option><option value="monthly-nth">毎月（第n曜日）</option><option value="yearly">毎年</option></select></div>
+            <div class="field c4"><label for="f-rep">繰り返し</label><select id="f-rep"><option value="weekly">毎週</option><option value="biweekly">2週ごと（隔週）</option><option value="monthly-date">毎月（同じ日付）</option><option value="monthly-nth">毎月（第N曜日）</option><option value="2-monthly">2ヶ月ごと</option><option value="3-monthly">3ヶ月ごと（四半期）</option><option value="6-monthly">半年ごと</option><option value="yearly">毎年</option></select></div>
             <div class="field c3"><label for="f-day" id="f-day-lab">曜日</label><select id="f-day"></select></div>
           </div>
           <div class="field c3" id="wrap-once-date" style="display:none;"><label for="f-date">日付</label><input id="f-date" type="date"></div>
@@ -1509,7 +1509,13 @@ let ganttMode=false;
 function syncGantt(){document.getElementById("wrap-gantt").style.display=ganttMode?"flex":"none";}
 document.getElementById("gantt-on").onclick=()=>{ganttMode=true;document.getElementById("gantt-on").classList.add("on");document.getElementById("gantt-off").classList.remove("on");syncGantt();};
 document.getElementById("gantt-off").onclick=()=>{ganttMode=false;document.getElementById("gantt-off").classList.add("on");document.getElementById("gantt-on").classList.remove("on");syncGantt();};
-function rebuildDay(){const rep=repSel.value;daySel.innerHTML="";const wrap=daySel.closest(".field");if(rep==="weekly"){dayLab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));}else if(rep==="monthly-date"){dayLab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));}else if(rep==="monthly-nth"){dayLab.textContent="第n/曜日";wrap.style.visibility="visible";NTH.forEach(([v,l])=>DAYS.forEach(([dv,dl])=>daySel.add(new Option(l+dl,v+"|"+dv))));}else if(rep==="yearly"){dayLab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=28;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});}}
+function rebuildDay(){const rep=repSel.value;daySel.innerHTML="";const wrap=daySel.closest(".field");
+  if(rep==="weekly"||rep==="biweekly"){dayLab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));}
+  else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){dayLab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));}
+  else if(rep==="monthly-nth"){dayLab.textContent="第n/曜日";wrap.style.visibility="visible";NTH.forEach(([v,l])=>DAYS.forEach(([dv,dl])=>daySel.add(new Option(l+dl,v+"|"+dv))));}
+  else if(rep==="yearly"){dayLab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=28;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});}
+  else{wrap.style.visibility="hidden";}
+}
 function syncKind(){monthlyWrap.style.display=MONTHLY_CATS.has(kindSel.value)?"flex":"none";}
 kindSel.onchange=syncKind;repSel.onchange=rebuildDay;rebuildDay();syncKind();
 document.getElementById("add-item").onclick=()=>{
@@ -1522,7 +1528,12 @@ document.getElementById("add-item").onclick=()=>{
     if(!it.date)return;
   }else{
     const dv=daySel.value;
-    if(rep==="weekly")it.day=dv;else if(rep==="monthly-date")it.mday=parseInt(dv);else if(rep==="monthly-nth"){const[n,d]=dv.split("|");it.nth=n;it.day=d;}else if(rep==="yearly"){const[m,d]=dv.split("|");it.month=parseInt(m);it.mday=parseInt(d);}
+    if(rep==="weekly"){it.day=dv;}
+    else if(rep==="biweekly"){it.day=dv;it.startDate=iso(today);}
+    else if(rep==="monthly-date"){it.mday=parseInt(dv);}
+    else if(rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){it.rep="n-monthly";it.interval=parseInt(rep);it.mday=parseInt(dv);it.startDate=iso(today);}
+    else if(rep==="monthly-nth"){const[n,d]=dv.split("|");it.nth=n;it.day=d;}
+    else if(rep==="yearly"){const[m,d]=dv.split("|");it.month=parseInt(m);it.mday=parseInt(d);}
   }
   if(MONTHLY_CATS.has(category)){it.monthly=parseInt(document.getElementById("f-monthly").value)||0;it.important=true;}
   state.items.push(it);
@@ -2099,7 +2110,8 @@ function openEdit(type,id,evId){
     const ct=it.customerType||"internal";
     const catOpts=["fixed","recurring","growth","project","travel"].map(v=>`<option value="${v}"${it.category===v?" selected":""}>${CAT_LABELS[v]||v}</option>`).join("");
     const ctOpts=["internal","customer","private","other"].map(v=>`<option value="${v}"${ct===v?" selected":""}>${CTYPE_LABELS[v]||v}</option>`).join("");
-    const repOpts=[["weekly","毎週"],["monthly-date","毎月（日付）"],["monthly-nth","毎月（第n）"],["yearly","毎年"]].map(([v,l])=>`<option value="${v}"${it.rep===v?" selected":""}>${l}</option>`).join("");
+    const _curRep=it.rep==="n-monthly"?`${it.interval||2}-monthly`:it.rep;
+    const repOpts=[["weekly","毎週"],["biweekly","2週ごと（隔週）"],["monthly-date","毎月（同じ日付）"],["monthly-nth","毎月（第N曜日）"],["2-monthly","2ヶ月ごと"],["3-monthly","3ヶ月ごと（四半期）"],["6-monthly","半年ごと"],["yearly","毎年"]].map(([v,l])=>`<option value="${v}"${_curRep===v?" selected":""}>${l}</option>`).join("");
     const isMon=MONTHLY_CATS.has(it.category);
     const visOpts=['<option value="public"'+((!it.visibility||it.visibility==="public")?" selected":"")+'> 🌐 公開</option>','<option value="busy"'+(it.visibility==="busy"?" selected":"")+'> ◐ 多忙のみ</option>','<option value="private"'+(it.visibility==="private"?" selected":"")+'> ● 非公開</option>'].join("");
     body.innerHTML=`<div class="dlg-field"><label>予定名</label><input id="dlg-f-title" type="text" value="${esc(it.title)}"></div><div class="dlg-field"><label>種別</label><select id="dlg-f-cat">${catOpts}</select></div><div class="dlg-field"><label>区分</label><select id="dlg-f-ctype">${ctOpts}</select></div><div class="dlg-field" id="dlg-wrap-cname" style="${ct==="customer"?"":"display:none"}"><label>顧客名</label><input id="dlg-f-cname" type="text" value="${esc(it.customerName||"")}"></div><div class="dlg-field"><label>公開レベル</label><select id="dlg-f-vis">${visOpts}</select></div><div class="dlg-field"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw${isOnce?"":" on"}" id="dlg-btn-rep">繰り返し</button><button class="vsw${isOnce?" on":""}" id="dlg-btn-once">一回のみ</button></div></div><div id="dlg-wrap-rep" style="${isOnce?"display:none":""}"><div class="dlg-field"><label>繰り返し</label><select id="dlg-f-rep">${repOpts}</select></div><div class="dlg-field" id="dlg-wrap-day"><label id="dlg-day-lab">曜日</label><select id="dlg-f-day"></select></div></div><div class="dlg-field" id="dlg-wrap-date" style="${isOnce?"":"display:none"}"><label>日付</label><input id="dlg-f-date-once" type="date" value="${it.date||""}"></div><div class="dlg-field"><label>開始時刻</label><input id="dlg-f-time" type="time" value="${it.time||"09:00"}"></div><div class="dlg-field"><label>所要時間（分）</label><input id="dlg-f-dur" type="number" min="5" step="5" value="${it.dur||60}"></div><div class="dlg-field" id="dlg-wrap-monthly" style="${isMon?"":"display:none"}"><label>月あたり（時間）</label><input id="dlg-f-monthly" type="number" min="1" step="1" value="${it.monthly||8}"></div>`;
@@ -2115,8 +2127,8 @@ function openEdit(type,id,evId){
         const repSel=document.getElementById("dlg-f-rep"),daySel=document.getElementById("dlg-f-day");if(!repSel||!daySel)return;
         const rep=repSel.value;daySel.innerHTML="";
         const wrap=document.getElementById("dlg-wrap-day"),lab=document.getElementById("dlg-day-lab");
-        if(rep==="weekly"){lab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));if(it.day)daySel.value=it.day;}
-        else if(rep==="monthly-date"){lab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));if(it.mday)daySel.value=it.mday;}
+        if(rep==="weekly"||rep==="biweekly"){lab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));if(it.day)daySel.value=it.day;}
+        else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){lab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));if(it.mday)daySel.value=it.mday;}
         else if(rep==="monthly-nth"){lab.textContent="第n/曜日";wrap.style.visibility="visible";NTH.forEach(([nv,nl])=>DAYS.forEach(([dv,dl])=>daySel.add(new Option(nl+dl,nv+"|"+dv))));if(it.nth&&it.day)daySel.value=it.nth+"|"+it.day;}
         else if(rep==="yearly"){lab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=28;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});if(it.month&&it.mday)daySel.value=it.month+"|"+it.mday;}
         else{if(wrap)wrap.style.visibility="hidden";}
@@ -2168,10 +2180,12 @@ function saveEdit(){
     }else{
       const rep=document.getElementById("dlg-f-rep").value;it.rep=rep;delete it.date;
       const dv=document.getElementById("dlg-f-day").value;
-      if(rep==="weekly"){it.day=dv;delete it.mday;delete it.nth;delete it.month;}
-      else if(rep==="monthly-date"){it.mday=parseInt(dv);delete it.day;delete it.nth;delete it.month;}
-      else if(rep==="monthly-nth"){const[n,d]=dv.split("|");it.nth=n;it.day=d;delete it.mday;delete it.month;}
-      else if(rep==="yearly"){const[m,d]=dv.split("|");it.month=parseInt(m);it.mday=parseInt(d);delete it.day;delete it.nth;}
+      if(rep==="weekly"){it.day=dv;delete it.mday;delete it.nth;delete it.month;delete it.interval;}
+      else if(rep==="biweekly"){it.rep="biweekly";it.day=dv;it.startDate=it.startDate||iso(today);delete it.mday;delete it.nth;delete it.month;delete it.interval;}
+      else if(rep==="monthly-date"){it.mday=parseInt(dv);delete it.day;delete it.nth;delete it.month;delete it.interval;}
+      else if(rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){it.rep="n-monthly";it.interval=parseInt(rep);it.mday=parseInt(dv);it.startDate=it.startDate||iso(today);delete it.day;delete it.nth;delete it.month;}
+      else if(rep==="monthly-nth"){const[n,d]=dv.split("|");it.nth=n;it.day=d;delete it.mday;delete it.month;delete it.interval;}
+      else if(rep==="yearly"){const[m,d]=dv.split("|");it.month=parseInt(m);it.mday=parseInt(d);delete it.day;delete it.nth;delete it.interval;}
     }
     if(MONTHLY_CATS.has(it.category)){it.monthly=parseInt(document.getElementById("dlg-f-monthly").value)||8;it.important=true;}
     save();renderBudget();renderQuad();renderCalendar();
