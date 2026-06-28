@@ -239,6 +239,9 @@
   .monthgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .monthgrid .dow { font-size: 12px; color: var(--muted); text-align: center; padding: 8px 0; font-weight: 600; background: var(--surface); }
   .daycell { min-height: 96px; background: var(--surface); padding: 6px; position: relative; transition: background 0.15s; cursor: pointer; }
+  .cal-grid-sm .daycell { min-height: 58px; padding: 3px 4px; }
+  .cal-grid-sm .daynum { font-size: 10px; }
+  .cal-grid-sm .ev { font-size: 9px; padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .daycell:hover { background: color-mix(in srgb, var(--plan) 5%, var(--surface)); }
   .daycell.other { background: #F2F0EB; opacity: 0.65; }
   .daycell.today { background: #F1EDE4; }
@@ -514,14 +517,14 @@
         </div>
       </div>
       <div class="panel-body" style="padding:0">
-        <div class="cal-grid" id="home-monthgrid"></div>
+        <div class="cal-grid cal-grid-sm" id="home-monthgrid"></div>
       </div>
     </section>
     <section class="panel">
       <div class="panel-head"><h2>時間収支（月）</h2><span class="hint">月間の可処分残高</span></div>
       <div class="panel-body">
         <div class="home-bal-row">
-          <span style="font-size:12px;color:var(--muted)">可処分残高</span>
+          <span id="home-bal-lbl" style="font-size:12px;color:var(--muted)">可処分残高</span>
           <span class="home-bal-val" id="home-bal-val">—</span>
         </div>
         <div class="bar" id="home-bar"></div>
@@ -825,11 +828,23 @@
           <option value="weekly">毎週（同じ曜日）</option>
           <option value="biweekly">2週ごと（隔週）</option>
           <option value="monthly-date">毎月（同じ日付）</option>
+          <option value="monthly-nth">毎月（第N曜日）</option>
           <option value="2-monthly">2ヶ月ごと</option>
           <option value="3-monthly">3ヶ月ごと（四半期）</option>
           <option value="6-monthly">半年ごと</option>
           <option value="yearly">毎年</option>
         </select>
+      </div>
+      <div class="dlg-field" id="qa-wrap-nth" style="display:none">
+        <label>週</label>
+        <select id="qa-nth">
+          <option value="1">第1</option>
+          <option value="2">第2</option>
+          <option value="3">第3</option>
+          <option value="4">第4</option>
+          <option value="-1">最終</option>
+        </select>
+        <span id="qa-nth-hint" style="font-size:12px;color:var(--muted);margin-left:6px"></span>
       </div>
       <div class="dlg-field">
         <label>公開レベル</label>
@@ -1628,12 +1643,12 @@ function renderCalendar(){
   document.getElementById("ct-week").classList.toggle("on",calMode==="week");
   if(calMode==="month")drawMonth();else drawWeek();
 }
-function drawMonthGrid(container, year, month){
+function drawMonthGrid(container, year, month, entries){
+  if(!entries) entries=monthEntries(year,month);
   container.innerHTML="";
   ["月","火","水","木","金","土","日"].forEach(d=>{const h=document.createElement("div");h.className="dow";h.textContent=d;container.appendChild(h);});
   const first=new Date(year,month,1);const startDow=(first.getDay()+6)%7;
   const gridStart=new Date(year,month,1-startDow);
-  const entries=monthEntries(year,month);
   const byDay={};entries.forEach(e=>{const k=iso(e.date);(byDay[k]=byDay[k]||[]).push(e);});
   for(let i=0;i<42;i++){
     const dt=new Date(gridStart.getFullYear(),gridStart.getMonth(),gridStart.getDate()+i);
@@ -1666,15 +1681,36 @@ function drawMonth(){
 
 /* ====== ホームタブ ====== */
 let homeCalY=today.getFullYear(),homeCalM=today.getMonth(),homeCtxIdx=0;
-// homeCtxIdx: 0=全予定, 1..n=state.contexts[n-1]
 
-function homeCtxList(){return [{id:null,name:"全予定",color:null},...(state.contexts||[])];}
+// 顧客キー一覧（state.itemsから収集）
+function homeCtxList(){
+  const keys=[...new Set(state.items.map(custKey))].sort((a,b)=>a.localeCompare(b,'ja'));
+  return [{id:null,name:"全予定"},...keys.map(k=>({id:k,name:k}))];
+}
+function homeCurrentCustFilter(){
+  const list=homeCtxList();
+  homeCtxIdx=Math.max(0,Math.min(homeCtxIdx,list.length-1));
+  return list[homeCtxIdx].id; // null = 全予定
+}
+
+// 顧客フィルタ済みのカレンダーエントリ
+function homeMonthEntries(year,month,custFilter){
+  const filtItems=custFilter?state.items.filter(it=>custKey(it)===custFilter):state.items;
+  const out=[];
+  filtItems.forEach(it=>{if(!it.rep)return;occInMonth(it,year,month).forEach(dt=>out.push({id:it.id,date:dt,label:it.title,kind:it.category,time:it.time}));});
+  if(!custFilter){
+    state.events.forEach(ev=>{const d=ymd(ev.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:ev.id,date:d,label:ev.title,kind:"anchor"});ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due.getFullYear()===year&&due.getMonth()===month)out.push({id:s.id,date:due,label:s.title,kind:"prep",evId:ev.id});});});
+    state.tasks.filter(t=>t.date&&!t.done).forEach(t=>{const d=ymd(t.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:t.id,date:d,label:t.title,kind:"manual"});});
+  }
+  return out;
+}
 
 function renderHome(){
   _renderHomeTodayStrip();
   _renderCtxPager();
   const lbl=document.getElementById("home-cal-label");if(lbl)lbl.textContent=`${homeCalY}年 ${homeCalM+1}月`;
-  const hg=document.getElementById("home-monthgrid");if(hg)drawMonthGrid(hg,homeCalY,homeCalM);
+  const hg=document.getElementById("home-monthgrid");
+  if(hg)drawMonthGrid(hg,homeCalY,homeCalM,homeMonthEntries(homeCalY,homeCalM,homeCurrentCustFilter()));
   _renderHomeBalance();
   _renderHomeMiniQuad();
 }
@@ -1683,55 +1719,70 @@ function _renderHomeTodayStrip(){
   const el=document.getElementById("home-today-strip");if(!el)return;
   const DOW=["日","月","火","水","木","金","土"];
   const capH=(state.income||40)/5;
-  const todayOccs=state.items.filter(it=>occInMonth(it,today.getFullYear(),today.getMonth()).some(d=>sameDay(d,today)));
-  const usedH=todayOccs.reduce((a,it)=>a+(it.dur||60)/60,0)
+  const todayItems=state.items.filter(it=>occInMonth(it,today.getFullYear(),today.getMonth()).some(d=>sameDay(d,today)));
+  const usedH=todayItems.reduce((a,it)=>a+(it.dur||60)/60,0)
     +state.events.filter(ev=>ev.date&&sameDay(ymd(ev.date),today)).reduce((a,ev)=>a+(ev.dur||60)/60,0)
     +state.tasks.filter(t=>t.date&&sameDay(ymd(t.date),today)&&!t.done).reduce((a,t)=>a+(t.dur||30)/60,0);
   const surpH=capH-usedH;
-  const surpStyle=surpH>=0?`color:var(--plan)`:`color:var(--ember)`;
+  const surpStyle=surpH>=0?"color:var(--plan)":"color:var(--ember)";
   const surpTxt=surpH>=0?`残 ${surpH.toFixed(1)}h`:`超過 ${Math.abs(surpH).toFixed(1)}h`;
-  el.innerHTML=`
-    <span class="ht-date">${today.getMonth()+1}月${today.getDate()}日（${DOW[today.getDay()]}）</span>
-    <span class="ht-used">使用 ${usedH.toFixed(1)}h／上限 ${capH.toFixed(1)}h</span>
-    <span style="${surpStyle};font-size:12px;font-weight:700">${surpTxt}</span>
-    <span class="ht-link" onclick="document.querySelector('[data-view=today]').click()">今日の詳細 →</span>`;
+  el.innerHTML=`<span class="ht-date">${today.getMonth()+1}月${today.getDate()}日（${DOW[today.getDay()]}）</span><span class="ht-used">使用 ${usedH.toFixed(1)}h／上限 ${capH.toFixed(1)}h</span><span style="${surpStyle};font-size:12px;font-weight:700">${surpTxt}</span><span class="ht-link" onclick="document.querySelector('[data-view=today]').click()">今日の詳細 →</span>`;
 }
 
 function _renderCtxPager(){
   const list=homeCtxList();
   homeCtxIdx=Math.max(0,Math.min(homeCtxIdx,list.length-1));
   const cur=list[homeCtxIdx];
-  state.activeContext=cur.id;
   const nameEl=document.getElementById("home-ctx-name");if(nameEl)nameEl.textContent=cur.name;
   const dotsEl=document.getElementById("home-ctx-dots");
   if(dotsEl)dotsEl.innerHTML=list.map((c,i)=>`<span class="ctx-dot${i===homeCtxIdx?' on':''}" onclick="homeCtxIdx=${i};renderHome()"></span>`).join('');
 }
 
 function _renderHomeBalance(){
-  const barEl=document.getElementById("home-bar");const balEl=document.getElementById("home-bal-val");const lgEl=document.getElementById("home-legend");
+  const barEl=document.getElementById("home-bar");const balEl=document.getElementById("home-bal-val");const lgEl=document.getElementById("home-legend");const lblEl=document.getElementById("home-bal-lbl");
   if(!barEl)return;
-  const incomeMonth=state.income*WPM;
-  const f=sumKind(state.items,"fixed"),r=sumKind(state.items,"recurring"),g=sumKind(state.items,"growth"),pj=sumKind(state.items,"project"),tr=sumKind(state.items,"travel"),p=prepLoadThisMonth();
-  const used=f+r+g+pj+tr+p,bal=incomeMonth-used;
-  const total=Math.max(incomeMonth,used),pct=x=>total>0?x/total*100:0;
+  const custFilter=homeCurrentCustFilter();
+  const filtItems=custFilter?state.items.filter(it=>custKey(it)===custFilter):state.items;
+  const f=sumKind(filtItems,"fixed"),r=sumKind(filtItems,"recurring"),g=sumKind(filtItems,"growth"),pj=sumKind(filtItems,"project"),tr=sumKind(filtItems,"travel");
   barEl.innerHTML="";
-  [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr],["prep",p],["balance",Math.max(bal,0)]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=pct(val)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});
-  if(balEl){balEl.innerHTML=`${bal>=0?"":"−"}${Math.abs(bal).toFixed(1)}<small> h/月</small>`;balEl.className="home-bal-val"+(bal<0?" neg":"");}
-  if(lgEl)lgEl.innerHTML=`<span><i class="i-fixed"></i>固定 <b class="v">${f.toFixed(1)}h</b></span><span><i class="i-recurring"></i>定期 <b class="v">${r.toFixed(1)}h</b></span><span><i class="i-growth"></i>成長 <b class="v">${g.toFixed(1)}h</b></span><span><i class="i-project"></i>目標 <b class="v">${pj.toFixed(1)}h</b></span><span><i class="i-travel"></i>移動 <b class="v">${tr.toFixed(1)}h</b></span><span><i class="i-balance"></i>残高 <b class="v">${Math.max(bal,0).toFixed(1)}h</b></span>`;
+  if(custFilter){
+    // 顧客別：収入比較なし、合計時間を表示
+    const total=f+r+g+pj+tr;
+    if(lblEl)lblEl.textContent="月間合計（この顧客）";
+    if(balEl){balEl.innerHTML=`${total.toFixed(1)}<small> h/月</small>`;balEl.className="home-bal-val";}
+    const max=Math.max(total,0.1);
+    [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=(val/max*100)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});
+    if(lgEl)lgEl.innerHTML=[["fixed","固定",f],["recurring","定期",r],["growth","成長",g],["project","目標",pj],["travel","移動",tr]].filter(([,, v])=>v>0).map(([k,l,v])=>`<span><i class="i-${k}"></i>${l} <b class="v">${v.toFixed(1)}h</b></span>`).join('');
+  }else{
+    // 全予定：収支バー
+    const p=prepLoadThisMonth(),incomeMonth=state.income*WPM;
+    const used=f+r+g+pj+tr+p,bal=incomeMonth-used;
+    const total=Math.max(incomeMonth,used),pct=x=>total>0?x/total*100:0;
+    if(lblEl)lblEl.textContent="可処分残高";
+    if(balEl){balEl.innerHTML=`${bal>=0?"":"−"}${Math.abs(bal).toFixed(1)}<small> h/月</small>`;balEl.className="home-bal-val"+(bal<0?" neg":"");}
+    [["fixed",f],["recurring",r],["growth",g],["project",pj],["travel",tr],["prep",p],["balance",Math.max(bal,0)]].forEach(([k,val])=>{if(val<=0)return;const s=document.createElement("div");s.className="seg "+k;s.style.width=pct(val)+"%";s.title=`${k}: ${val.toFixed(1)}h`;barEl.appendChild(s);});
+    if(lgEl)lgEl.innerHTML=`<span><i class="i-fixed"></i>固定 <b class="v">${f.toFixed(1)}h</b></span><span><i class="i-recurring"></i>定期 <b class="v">${r.toFixed(1)}h</b></span><span><i class="i-growth"></i>成長 <b class="v">${g.toFixed(1)}h</b></span><span><i class="i-project"></i>目標 <b class="v">${pj.toFixed(1)}h</b></span><span><i class="i-travel"></i>移動 <b class="v">${tr.toFixed(1)}h</b></span><span><i class="i-balance"></i>残高 <b class="v">${Math.max(bal,0).toFixed(1)}h</b></span>`;
+  }
 }
 
 function _renderHomeMiniQuad(){
   const el=document.getElementById("home-quad");if(!el)return;
-  const allT=[
-    ...state.items.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false,done:false})),
-    ...B().tasks.map(t=>({title:t.title,important:t.important,urgent:t.urgent,done:t.done||false}))
-  ].filter(t=>!t.done);
+  const custFilter=homeCurrentCustFilter();
+  let allT;
+  if(custFilter){
+    allT=state.items.filter(it=>custKey(it)===custFilter).map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false}));
+  }else{
+    allT=[
+      ...state.items.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false})),
+      ...B().tasks.filter(t=>!t.done).map(t=>({title:t.title,important:t.important,urgent:t.urgent}))
+    ];
+  }
   const q={1:[],2:[],3:[],4:[]};
   allT.forEach(t=>{const qi=t.important?(t.urgent?1:2):(t.urgent?3:4);q[qi].push(t);});
-  const QDef=[{id:1,lbl:"Q1 重要×緊急",col:"var(--ember)"},{id:2,lbl:"Q2 重要×非緊急",col:"var(--fixed)"},{id:3,lbl:"Q3 緊急×非重要",col:"var(--active)"},{id:4,lbl:"Q4 その他",col:"var(--muted)"}];
+  const QDef=[{id:1,lbl:"Q1",col:"var(--ember)"},{id:2,lbl:"Q2",col:"var(--fixed)"},{id:3,lbl:"Q3",col:"var(--active)"},{id:4,lbl:"Q4",col:"var(--muted)"}];
   el.innerHTML=QDef.map(({id,lbl,col})=>{
     const items=q[id];
-    const sample=items.slice(0,3).map(t=>`<div>▸ ${esc(t.title)}</div>`).join('');
+    const sample=items.slice(0,3).map(t=>`<div class="hq-task-row">▸ ${esc(t.title)}</div>`).join('');
     const more=items.length>3?`<div style="color:var(--faint)">…他${items.length-3}件</div>`:'';
     return `<div class="hq-box" style="border-top-color:${col}"><div class="hq-label" style="color:${col}">${lbl}</div><div class="hq-count">${items.length}</div><div class="hq-tasks">${sample}${more}</div></div>`;
   }).join('');
@@ -1781,10 +1832,26 @@ function openQuickAdd(dateStr){
   ctxSel.innerHTML='<option value="">（未設定）</option>'+(state.contexts||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
   if(state.activeContext)ctxSel.value=state.activeContext||"";
   // 種別変更で繰り返し欄を表示切替
+  const _qaRepSync=()=>{
+    const rep=document.getElementById("qa-rep").value;
+    const show=rep==="monthly-nth";
+    document.getElementById("qa-wrap-nth").style.display=show?"block":"none";
+    if(show){
+      // 選択日付から第N週を自動セット
+      const firstDom=new Date(d.getFullYear(),d.getMonth(),1);
+      const off=(d.getDay()-firstDom.getDay()+7)%7;
+      const nth=Math.floor((d.getDate()-(1+off))/7)+1;
+      document.getElementById("qa-nth").value=String(Math.min(4,Math.max(1,nth)));
+      const dayKeys=["日","月","火","水","木","金","土"];
+      document.getElementById("qa-nth-hint").textContent=`（${dayKeys[d.getDay()]}曜日）`;
+    }
+  };
   document.getElementById("qa-kind").onchange=()=>{
     const v=document.getElementById("qa-kind").value;
     document.getElementById("qa-wrap-rep").style.display=(v&&v!=="")?"block":"none";
+    document.getElementById("qa-wrap-nth").style.display="none";
   };
+  document.getElementById("qa-rep").onchange=_qaRepSync;
 
   document.getElementById("qa-save").onclick=()=>{
     const title=document.getElementById("qa-title").value.trim();
@@ -1803,9 +1870,14 @@ function openQuickAdd(dateStr){
       // 繰り返し予定 → state.items
       const it={id:uid(),title,category:kind,time,dur,tags:[],estimate:null,actual:null,
         visibility:vis,contextId:ctxId,important,urgent,memo};
-      if(rep==="weekly"){it.rep="weekly";it.day=d.getDay();}
-      else if(rep==="biweekly"){it.rep="biweekly";it.day=d.getDay();it.startDate=dateStr;}
+      const DAYKEYS_ICS=["SU","MO","TU","WE","TH","FR","SA"];
+      if(rep==="weekly"){it.rep="weekly";it.day=DAYKEYS_ICS[d.getDay()];}
+      else if(rep==="biweekly"){it.rep="biweekly";it.day=DAYKEYS_ICS[d.getDay()];it.startDate=dateStr;}
       else if(rep==="monthly-date"){it.rep="monthly-date";it.mday=d.getDate();}
+      else if(rep==="monthly-nth"){
+        it.rep="monthly-nth";it.day=DAYKEYS_ICS[d.getDay()];
+        it.nth=document.getElementById("qa-nth").value;
+      }
       else if(rep==="2-monthly"){it.rep="n-monthly";it.interval=2;it.mday=d.getDate();it.startDate=dateStr;}
       else if(rep==="3-monthly"){it.rep="n-monthly";it.interval=3;it.mday=d.getDate();it.startDate=dateStr;}
       else if(rep==="6-monthly"){it.rep="n-monthly";it.interval=6;it.mday=d.getDate();it.startDate=dateStr;}
