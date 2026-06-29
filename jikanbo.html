@@ -892,6 +892,13 @@
         </div>
       </div>
     </section>
+    <section class="panel" style="border-color:var(--ember)">
+      <div class="panel-head"><span class="n" style="color:var(--ember)">⚠</span><h2 style="color:var(--ember)">データをリセット</h2></div>
+      <div class="panel-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">すべての予定・タスク・目標・タグ・文脈を削除します。この操作は元に戻せません。</p>
+        <button class="btn" id="reset-all-btn" style="background:var(--ember);border-color:var(--ember);color:#fff">すべてのデータを削除してリセット</button>
+      </div>
+    </section>
   </div>
 
   <footer>時間簿 — データはこのブラウザ内（localStorage）にのみ保存されます。</footer>
@@ -2795,6 +2802,12 @@ document.getElementById("seed").onclick=()=>{
   state.events=[{id:uid(),title:"秋の学会・出展",date:iso(new Date(Y,8,15)),important:true,contextId:ctxWorkId,tags:[tagPro],steps:[{id:uid(),title:"出展申込",lead:3,unit:"month",dur:3},{id:uid(),title:"配布資料の準備",lead:1,unit:"month",dur:6}],estimate:null,actual:null,visibility:"public"}];
   state.tasks=[{id:uid(),title:"顧客A大学 提案メモ整理",important:true,urgent:false,done:false,date:iso(today),dur:45,tags:[tagPro],contextId:ctxWorkId,estimate:null,actual:null,visibility:"public"}];
   save();renderBookNav();renderTags();renderActive();
+};
+
+document.getElementById("reset-all-btn").onclick=()=>{
+  if(!confirm("すべての予定・タスク・目標・タグ・文脈を削除します。\nこの操作は元に戻せません。よろしいですか？")) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
 };
 
 /* uid は load() より前に必要なため script 上部に移動済み */
