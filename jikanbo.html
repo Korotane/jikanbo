@@ -693,8 +693,9 @@
             <div class="field c3"><label for="f-day" id="f-day-lab">曜日</label><select id="f-day"></select></div>
           </div>
           <div class="field c3" id="wrap-once-date" style="display:none;"><label for="f-date">日付</label><input id="f-date" type="date"></div>
-          <div class="field c3"><label for="f-time">開始時刻</label><input id="f-time" type="time" value="09:00"></div>
-          <div class="field c3"><label for="f-dur">所要時間(分)</label><input id="f-dur" type="number" min="5" step="5" value="60"></div>
+          <div class="field c3" id="wrap-allday" style="display:none;"><label>終日</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:normal"><input id="f-allday" type="checkbox"> 終日予定にする</label></div>
+          <div class="field c3" id="wrap-f-time"><label for="f-time">開始時刻</label><input id="f-time" type="time" value="09:00"></div>
+          <div class="field c3" id="wrap-f-dur"><label for="f-dur">所要時間(分)</label><input id="f-dur" type="number" min="5" step="5" value="60"></div>
           <div class="field c3" id="wrap-monthly" style="display:none;"><label for="f-monthly">月あたり(時間)</label><input id="f-monthly" type="number" min="1" step="1" value="8"></div>
           <div class="field c12"><label for="f-memo">メモ・備考</label><input id="f-memo" type="text" placeholder="補足・URL・担当者など" style="width:100%;box-sizing:border-box"></div>
           <div class="field c3"><label for="f-vis">公開レベル</label><select id="f-vis"><option value="public">🌐 公開</option><option value="busy">◐ 多忙のみ</option><option value="private">● 非公開</option></select></div>
@@ -1365,7 +1366,7 @@ function renderToday(){
       }).join("");
       cl=`<button class="cl-toggle" onclick="var d=document.getElementById('tcl-${it.id}');d.style.display=d.style.display==='none'?'block':'none'">📋 ${it.checklist.length}ステップ</button><div class="today-cl" id="tcl-${it.id}">${rows}</div>`;
     }
-    return `<div class="today-row" style="flex-wrap:wrap"><span class="today-t">${it.time||"―"}</span><span class="today-mk" style="color:${color}">${KMARK[it.category]||"▪"}</span><span class="cust-badge ${ct}" style="font-size:9px;padding:1px 6px;">${esc(customerLabel(it))}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${dur}</span>${cl}</div>`;
+    return `<div class="today-row" style="flex-wrap:wrap"><span class="today-t">${it.allDay?"終日":(it.time||"―")}</span><span class="today-mk" style="color:${color}">${KMARK[it.category]||"▪"}</span><span class="cust-badge ${ct}" style="font-size:9px;padding:1px 6px;">${esc(customerLabel(it))}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${dur}</span>${cl}</div>`;
   }).join("");}
   // ゴール・マイルストーンリスト
   const goalsList=document.getElementById("today-goals-list");
@@ -1454,7 +1455,7 @@ function renderWeek(){
     const its=dayItems[i].slice().sort((a,b)=>(a.time||"99:99").localeCompare(b.time||"99:99"));
     const isToday=sameDay(d,today);
     const dayH=its.reduce((a,it)=>a+(it.dur||60)/60,0);
-    const rows=its.map(it=>`<div class="today-row"><span class="today-t">${it.time||"―"}</span><span class="today-mk" style="color:${CAT_COL2[it.category]||"var(--muted)"}">${KMARK[it.category]||"▪"}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${it.dur||60}分</span></div>`).join("");
+    const rows=its.map(it=>`<div class="today-row"><span class="today-t">${it.allDay?"終日":(it.time||"―")}</span><span class="today-mk" style="color:${CAT_COL2[it.category]||"var(--muted)"}">${KMARK[it.category]||"▪"}</span><span class="today-title">${esc(it.title)}</span><span class="today-dur">${it.allDay?"":it.dur||60+"分"}</span></div>`).join("");
     return `<div class="week-day-block"><div class="week-day-hd${isToday?" today-hl":""}"><span class="wd-name">${wdNames[d.getDay()]}</span><span class="wd-date">${d.getMonth()+1}/${d.getDate()}</span>${isToday?'<span style="font-size:10px;color:var(--plan);font-weight:700">今日</span>':''}<span class="wd-h">${dayH>0?dayH.toFixed(1)+"h":""}</span></div>${rows||'<div class="week-empty">予定なし</div>'}</div>`;
   }).join("");
 
@@ -1601,7 +1602,7 @@ function renderMonthly(){renderCalendar();}  // 月間タブはカレンダー�
 const VIS_LABEL={busy:"◐ 多忙",private:"● 非公開"};
 function itemHTML(it){const h=monthlyHours(it);const ct=it.customerType||"internal";const vis=it.visibility||"public";const visBadge=vis!=="public"?`<span class="vis-badge ${vis}">${VIS_LABEL[vis]}</span>`:"";const memoLine=it.memo?`<span class="item-memo">${esc(it.memo)}</span>`:"";const clBadge=(it.checklist?.length)?`<span class="cl-badge" onclick="openEdit('item','${it.id}')">📋 ${it.checklist.length}ステップ</span>`:"";return `<div class="item"><span class="cust-badge ${ct}">${esc(customerLabel(it))}</span><span class="t">${esc(it.title)}</span>${visBadge}${tagChips(it.tags)}<button class="tagbtn" onclick="openTagMenu(this,'item','${it.id}')">＋タグ</button>${clBadge}${memoLine}<span class="m">${metaLabel(it)}</span><span class="h">${h.toFixed(1)}h</span><button class="mini-edit" onclick="openEdit('item','${it.id}')">✎</button><button class="del" data-id="${it.id}">×</button></div>`;}
 function metaLabel(it){
-  if(it.rep==="once")return it.date?`${it.date}${it.time?" "+it.time:""}・${it.dur}分`:"";
+  if(it.rep==="once")return it.date?(it.allDay?`${it.date}・終日`:`${it.date}${it.time?" "+it.time:""}・${it.dur}分`):"";
   if(MONTHLY_CATS.has(it.category)){const w=it.time?`／${DAYJP[it.day]||""}${it.time}〜`:"";return `月${it.monthly}h${w}`;}
   switch(it.rep){case "weekly":return `毎週${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "biweekly":return `2週ごと${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "monthly-date":return `毎月${it.mday}日 ${it.time||""}・${it.dur}分`;case "n-monthly":return `${it.interval||2}ヶ月ごと${it.mday}日 ${it.time||""}・${it.dur}分`;case "monthly-nth":return `毎月${nthJp(it.nth)}${DAYJP[it.day]||""} ${it.time||""}・${it.dur}分`;case "yearly":return `毎年${it.month}/${it.mday}・${it.dur}分`;default:return "";}
 }
@@ -1616,11 +1617,22 @@ function syncFreq(){
   const isOnce=freqMode==="once";
   document.getElementById("wrap-rep-fields").style.display=isOnce?"none":"";
   document.getElementById("wrap-once-date").style.display=isOnce?"flex":"none";
+  document.getElementById("wrap-allday").style.display=isOnce?"flex":"none";
   document.getElementById("freq-rep").classList.toggle("on",!isOnce);
   document.getElementById("freq-once").classList.toggle("on",isOnce);
+  if(!isOnce){
+    document.getElementById("f-allday").checked=false;
+    document.getElementById("wrap-f-time").style.display="";
+    document.getElementById("wrap-f-dur").style.display="";
+  }
 }
 document.getElementById("freq-rep").onclick=()=>{freqMode="rep";syncFreq();};
 document.getElementById("freq-once").onclick=()=>{freqMode="once";syncFreq();};
+document.getElementById("f-allday").onchange=function(){
+  const hide=this.checked;
+  document.getElementById("wrap-f-time").style.display=hide?"none":"";
+  document.getElementById("wrap-f-dur").style.display=hide?"none":"";
+};
 document.getElementById("vsw-kind").onclick=()=>{budgetView="kind";document.getElementById("vsw-kind").classList.add("on");document.getElementById("vsw-cust").classList.remove("on");renderBudget();};
 document.getElementById("vsw-cust").onclick=()=>{budgetView="customer";document.getElementById("vsw-cust").classList.add("on");document.getElementById("vsw-kind").classList.remove("on");renderBudget();};
 let ganttMode=false;
@@ -1641,7 +1653,8 @@ document.getElementById("add-item").onclick=()=>{
   const category=kindSel.value,rep=repSel.value;
   const ctype=ctypeSel.value,cname=ctype==="customer"?document.getElementById("f-cname").value.trim():"";
   const memo=document.getElementById("f-memo").value.trim()||null;
-  const it={id:uid(),category,title,rep:freqMode==="once"?"once":rep,time:document.getElementById("f-time").value||"",dur:parseInt(document.getElementById("f-dur").value)||60,customerType:ctype,customerName:cname,tags:[],estimate:null,actual:null,visibility:document.getElementById("f-vis").value||"public",memo,checklist:[]};
+  const allDay=freqMode==="once"&&document.getElementById("f-allday").checked;
+  const it={id:uid(),category,title,rep:freqMode==="once"?"once":rep,allDay:allDay||undefined,time:allDay?"":document.getElementById("f-time").value||"",dur:allDay?0:parseInt(document.getElementById("f-dur").value)||60,customerType:ctype,customerName:cname,tags:[],estimate:null,actual:null,visibility:document.getElementById("f-vis").value||"public",memo,checklist:[]};
   if(freqMode==="once"){
     it.date=document.getElementById("f-date").value;
     if(!it.date)return;
@@ -1759,7 +1772,7 @@ const KMARK={anchor:"●",prep:"◆",fixed:"▪",recurring:"▫",invest:"★",gr
 function monthEntries(year,month){
   const out=[];
   // 費目（グローバル）
-  state.items.forEach(it=>{if(!it.rep)return;occInMonth(it,year,month).forEach(dt=>out.push({id:it.id,date:dt,label:it.title,kind:it.category,time:it.time,contextId:null}));});
+  state.items.forEach(it=>{if(!it.rep)return;occInMonth(it,year,month).forEach(dt=>out.push({id:it.id,date:dt,label:it.title,kind:it.category,time:it.time,allDay:it.allDay,contextId:null}));});
   // イベント・準備（全文脈）
   state.events.forEach(ev=>{
     const d=ymd(ev.date);
@@ -1800,7 +1813,7 @@ function drawMonthGrid(container, year, month, entries){
     list.forEach(e=>{
       const el=document.createElement("div");
       el.className="ev c-"+(e.kind||"manual");
-      el.innerHTML=`<span class="mk">${KMARK[e.kind]||""}</span>${e.time?e.time+" ":""}${esc(e.label)}`;
+      el.innerHTML=`<span class="mk">${KMARK[e.kind]||""}</span>${e.allDay?"終日 ":(e.time?e.time+" ":"")}${esc(e.label)}`;
       el.title=e.label;
       if(e.kind==='manual'||e.kind==='anchor'){
         el.classList.add('draggable');
@@ -2337,9 +2350,14 @@ function buildICS(mode){
     if(title===null)return;
     if(it.rep==="once"){
       if(!it.date)return;
-      const[hh,mm]=(it.time||"09:00").split(":").map(Number);const[yy,mo,dd]=it.date.split("-").map(Number);
-      const start=new Date(yy,mo-1,dd,hh,mm,0);const end=new Date(start.getTime()+(it.dur||60)*60000);
-      L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+escICS(title),icsClass(vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
+      if(it.allDay){
+        const[yy,mo,dd]=it.date.split("-").map(Number);const d=new Date(yy,mo-1,dd);
+        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(d),"DTEND;VALUE=DATE:"+dstamp(new Date(d.getTime()+DAY)),"SUMMARY:"+escICS(title),icsClass(vis),"END:VEVENT");
+      }else{
+        const[hh,mm]=(it.time||"09:00").split(":").map(Number);const[yy,mo,dd]=it.date.split("-").map(Number);
+        const start=new Date(yy,mo-1,dd,hh,mm,0);const end=new Date(start.getTime()+(it.dur||60)*60000);
+        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+escICS(title),icsClass(vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
+      }
     }else if(it.time){
       const{start,end}=firstOcc(it);
       L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"RRULE:"+rrule(it),"SUMMARY:"+escICS(title),icsClass(vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
@@ -2468,15 +2486,22 @@ function openEdit(type,id,evId){
     const repOpts=[["weekly","毎週"],["biweekly","2週ごと（隔週）"],["monthly-date","毎月（同じ日付）"],["monthly-nth","毎月（第N曜日）"],["2-monthly","2ヶ月ごと"],["3-monthly","3ヶ月ごと（四半期）"],["6-monthly","半年ごと"],["yearly","毎年"]].map(([v,l])=>`<option value="${v}"${_curRep===v?" selected":""}>${l}</option>`).join("");
     const isMon=MONTHLY_CATS.has(it.category);
     const visOpts=['<option value="public"'+((!it.visibility||it.visibility==="public")?" selected":"")+'> 🌐 公開</option>','<option value="busy"'+(it.visibility==="busy"?" selected":"")+'> ◐ 多忙のみ</option>','<option value="private"'+(it.visibility==="private"?" selected":"")+'> ● 非公開</option>'].join("");
-    body.innerHTML=`<div class="dlg-field"><label>予定名</label><input id="dlg-f-title" type="text" value="${esc(it.title)}"></div><div class="dlg-field"><label>種別</label><select id="dlg-f-cat">${catOpts}</select></div><div class="dlg-field"><label>区分</label><select id="dlg-f-ctype">${ctOpts}</select></div><div class="dlg-field" id="dlg-wrap-cname" style="${ct==="customer"?"":"display:none"}"><label>顧客名</label><input id="dlg-f-cname" type="text" value="${esc(it.customerName||"")}"></div><div class="dlg-field"><label>公開レベル</label><select id="dlg-f-vis">${visOpts}</select></div><div class="dlg-field"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw${isOnce?"":" on"}" id="dlg-btn-rep">繰り返し</button><button class="vsw${isOnce?" on":""}" id="dlg-btn-once">一回のみ</button></div></div><div id="dlg-wrap-rep" style="${isOnce?"display:none":""}"><div class="dlg-field"><label>繰り返し</label><select id="dlg-f-rep">${repOpts}</select></div><div class="dlg-field" id="dlg-wrap-day"><label id="dlg-day-lab">曜日</label><select id="dlg-f-day"></select></div></div><div class="dlg-field" id="dlg-wrap-date" style="${isOnce?"":"display:none"}"><label>日付</label><input id="dlg-f-date-once" type="date" value="${it.date||""}"></div><div class="dlg-field"><label>開始時刻</label><input id="dlg-f-time" type="time" value="${it.time||"09:00"}"></div><div class="dlg-field"><label>所要時間（分）</label><input id="dlg-f-dur" type="number" min="5" step="5" value="${it.dur||60}"></div><div class="dlg-field" id="dlg-wrap-monthly" style="${isMon?"":"display:none"}"><label>月あたり（時間）</label><input id="dlg-f-monthly" type="number" min="1" step="1" value="${it.monthly||8}"></div><div class="dlg-field"><label>メモ・備考</label><input id="dlg-f-memo" type="text" value="${esc(it.memo||"")}" placeholder="補足・URL・担当者など" style="width:100%;box-sizing:border-box"></div><div class="dlg-field" style="flex-direction:column;align-items:flex-start;gap:6px"><label>手順書（ステップ）</label><div id="dlg-cl-list"></div><button type="button" class="cl-add-btn" id="dlg-cl-add">＋ ステップを追加</button></div>`;
+    body.innerHTML=`<div class="dlg-field"><label>予定名</label><input id="dlg-f-title" type="text" value="${esc(it.title)}"></div><div class="dlg-field"><label>種別</label><select id="dlg-f-cat">${catOpts}</select></div><div class="dlg-field"><label>区分</label><select id="dlg-f-ctype">${ctOpts}</select></div><div class="dlg-field" id="dlg-wrap-cname" style="${ct==="customer"?"":"display:none"}"><label>顧客名</label><input id="dlg-f-cname" type="text" value="${esc(it.customerName||"")}"></div><div class="dlg-field"><label>公開レベル</label><select id="dlg-f-vis">${visOpts}</select></div><div class="dlg-field"><label>頻度</label><div class="view-sw" style="margin-top:2px;"><button class="vsw${isOnce?"":" on"}" id="dlg-btn-rep">繰り返し</button><button class="vsw${isOnce?" on":""}" id="dlg-btn-once">一回のみ</button></div></div><div id="dlg-wrap-rep" style="${isOnce?"display:none":""}"><div class="dlg-field"><label>繰り返し</label><select id="dlg-f-rep">${repOpts}</select></div><div class="dlg-field" id="dlg-wrap-day"><label id="dlg-day-lab">曜日</label><select id="dlg-f-day"></select></div></div><div class="dlg-field" id="dlg-wrap-date" style="${isOnce?"":"display:none"}"><label>日付</label><input id="dlg-f-date-once" type="date" value="${it.date||""}"></div><div class="dlg-field" id="dlg-wrap-allday" style="${isOnce?"":"display:none"}"><label>終日</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:normal"><input id="dlg-f-allday" type="checkbox" ${it.allDay?"checked":""}> 終日予定にする</label></div><div class="dlg-field" id="dlg-wrap-time" style="${isOnce&&it.allDay?"display:none":""}"><label>開始時刻</label><input id="dlg-f-time" type="time" value="${it.time||"09:00"}"></div><div class="dlg-field" id="dlg-wrap-dlg-dur" style="${isOnce&&it.allDay?"display:none":""}"><label>所要時間（分）</label><input id="dlg-f-dur" type="number" min="5" step="5" value="${it.dur||60}"></div><div class="dlg-field" id="dlg-wrap-monthly" style="${isMon?"":"display:none"}"><label>月あたり（時間）</label><input id="dlg-f-monthly" type="number" min="1" step="1" value="${it.monthly||8}"></div><div class="dlg-field"><label>メモ・備考</label><input id="dlg-f-memo" type="text" value="${esc(it.memo||"")}" placeholder="補足・URL・担当者など" style="width:100%;box-sizing:border-box"></div><div class="dlg-field" style="flex-direction:column;align-items:flex-start;gap:6px"><label>手順書（ステップ）</label><div id="dlg-cl-list"></div><button type="button" class="cl-add-btn" id="dlg-cl-add">＋ ステップを追加</button></div>`;
     setTimeout(()=>{
       const ctSel=document.getElementById("dlg-f-ctype");
       if(ctSel)ctSel.onchange=()=>{document.getElementById("dlg-wrap-cname").style.display=ctSel.value==="customer"?"":"none";};
       const catSel=document.getElementById("dlg-f-cat");
       if(catSel)catSel.onchange=()=>{document.getElementById("dlg-wrap-monthly").style.display=MONTHLY_CATS.has(catSel.value)?"":"none";};
       const btnRep=document.getElementById("dlg-btn-rep"),btnOnce=document.getElementById("dlg-btn-once");
-      if(btnRep)btnRep.onclick=()=>{btnRep.classList.add("on");btnOnce.classList.remove("on");document.getElementById("dlg-wrap-rep").style.display="";document.getElementById("dlg-wrap-date").style.display="none";};
-      if(btnOnce)btnOnce.onclick=()=>{btnOnce.classList.add("on");btnRep.classList.remove("on");document.getElementById("dlg-wrap-rep").style.display="none";document.getElementById("dlg-wrap-date").style.display="";};
+      const _dlgSyncAllDay=()=>{
+        const ad=document.getElementById("dlg-f-allday");if(!ad)return;
+        const hide=ad.checked;
+        document.getElementById("dlg-wrap-time").style.display=hide?"none":"";
+        document.getElementById("dlg-wrap-dlg-dur").style.display=hide?"none":"";
+      };
+      const adEl=document.getElementById("dlg-f-allday");if(adEl)adEl.onchange=_dlgSyncAllDay;
+      if(btnRep)btnRep.onclick=()=>{btnRep.classList.add("on");btnOnce.classList.remove("on");document.getElementById("dlg-wrap-rep").style.display="";document.getElementById("dlg-wrap-date").style.display="none";document.getElementById("dlg-wrap-allday").style.display="none";const ad=document.getElementById("dlg-f-allday");if(ad){ad.checked=false;_dlgSyncAllDay();}};
+      if(btnOnce)btnOnce.onclick=()=>{btnOnce.classList.add("on");btnRep.classList.remove("on");document.getElementById("dlg-wrap-rep").style.display="none";document.getElementById("dlg-wrap-date").style.display="";document.getElementById("dlg-wrap-allday").style.display="";};
       function rebuildDlgDay(){
         const repSel=document.getElementById("dlg-f-rep"),daySel=document.getElementById("dlg-f-day");if(!repSel||!daySel)return;
         const rep=repSel.value;daySel.innerHTML="";
@@ -2536,8 +2561,10 @@ function saveEdit(){
     it.customerType=document.getElementById("dlg-f-ctype").value;
     it.customerName=it.customerType==="customer"?document.getElementById("dlg-f-cname").value.trim():"";
     it.visibility=document.getElementById("dlg-f-vis").value||"public";
-    it.time=document.getElementById("dlg-f-time").value;
-    it.dur=parseInt(document.getElementById("dlg-f-dur").value)||60;
+    const _adEl=document.getElementById("dlg-f-allday");
+    it.allDay=_adEl?_adEl.checked:false;
+    it.time=it.allDay?"":document.getElementById("dlg-f-time").value;
+    it.dur=it.allDay?0:parseInt(document.getElementById("dlg-f-dur").value)||60;
     const isOnce=document.getElementById("dlg-btn-once").classList.contains("on");
     if(isOnce){
       it.rep="once";it.date=document.getElementById("dlg-f-date-once").value;
