@@ -1641,9 +1641,9 @@ document.getElementById("gantt-on").onclick=()=>{ganttMode=true;document.getElem
 document.getElementById("gantt-off").onclick=()=>{ganttMode=false;document.getElementById("gantt-off").classList.add("on");document.getElementById("gantt-on").classList.remove("on");syncGantt();};
 function rebuildDay(){const rep=repSel.value;daySel.innerHTML="";const wrap=daySel.closest(".field");
   if(rep==="weekly"||rep==="biweekly"){dayLab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));}
-  else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){dayLab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));}
+  else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){dayLab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=31;d++)daySel.add(new Option(d+"日",d));}
   else if(rep==="monthly-nth"){dayLab.textContent="第n/曜日";wrap.style.visibility="visible";NTH.forEach(([v,l])=>DAYS.forEach(([dv,dl])=>daySel.add(new Option(l+dl,v+"|"+dv))));}
-  else if(rep==="yearly"){dayLab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=28;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});}
+  else if(rep==="yearly"){dayLab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=31;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});}
   else{wrap.style.visibility="hidden";}
 }
 function syncKind(){monthlyWrap.style.display=MONTHLY_CATS.has(kindSel.value)?"flex":"none";}
@@ -1758,14 +1758,14 @@ function occInMonth(it,year,month){
     const t=DAYIDX[it.day];const ref=ymd(it.startDate||it.date||iso(today));
     for(let d=1;d<=last;d++){const dt=new Date(year,month,d);if(dt.getDay()===t){const wks=Math.round((dt-ref)/DAY/7);if(wks>=0&&wks%2===0)days.push(dt);}}
   }
-  else if(it.rep==="monthly-date"){if(it.mday<=last)days.push(new Date(year,month,it.mday));}
+  else if(it.rep==="monthly-date"){days.push(new Date(year,month,Math.min(it.mday,last)));}
   else if(it.rep==="n-monthly"){
     const ref=ymd(it.startDate||it.date||iso(today));
     const diff=(year-ref.getFullYear())*12+(month-ref.getMonth());
-    if(diff>=0&&diff%(it.interval||2)===0&&(it.mday||1)<=last)days.push(new Date(year,month,it.mday||1));
+    if(diff>=0&&diff%(it.interval||2)===0)days.push(new Date(year,month,Math.min(it.mday||1,last)));
   }
   else if(it.rep==="monthly-nth"){const dt=nthWd(year,month,it.nth,it.day,0,0);if(dt.getMonth()===month)days.push(dt);}
-  else if(it.rep==="yearly"){if(it.month-1===month)days.push(new Date(year,month,it.mday));}
+  else if(it.rep==="yearly"){if(it.month-1===month)days.push(new Date(year,month,Math.min(it.mday,last)));}
   return days;
 }
 const KMARK={anchor:"●",prep:"◆",fixed:"▪",recurring:"▫",invest:"★",growth:"▲",project:"★",travel:"▶",manual:"⚡"};
@@ -2338,6 +2338,26 @@ function buildICS(mode){
   function alarm(title){return ["BEGIN:VALARM","TRIGGER:-PT10M","ACTION:DISPLAY","DESCRIPTION:"+escICS(title),"END:VALARM"];}
   function icsClass(vis){return "CLASS:"+(vis==="private"?"PRIVATE":vis==="busy"?"CONFIDENTIAL":"PUBLIC");}
   function sharedTitle(vis,orig,fallback){if(mode==="shared"){if(vis==="private")return null;if(vis==="busy")return fallback;}return orig;}
+  // 顧客・文脈情報を CATEGORIES / DESCRIPTION として付加
+  function icsItemMeta(it,vis){
+    if(mode==="shared"&&vis==="busy")return [];
+    const lines=[];
+    const cat=CTYPE_LABELS[it.customerType||"internal"]||"";
+    if(cat)lines.push("CATEGORIES:"+escICS(cat));
+    const desc=[];
+    if(it.customerType==="customer"&&it.customerName)desc.push("顧客："+it.customerName);
+    if(it.memo)desc.push(it.memo);
+    if(desc.length)lines.push("DESCRIPTION:"+escICS(desc.join("\\n")));
+    return lines;
+  }
+  function icsCtxMeta(it,vis){
+    if(mode==="shared"&&vis==="busy")return [];
+    const lines=[];
+    if(it.contextId){const ctx=(state.contexts||[]).find(c=>c.id===it.contextId);if(ctx)lines.push("CATEGORIES:"+escICS(ctx.name));}
+    else if(it.customerType){const cat=CTYPE_LABELS[it.customerType]||"";if(cat)lines.push("CATEGORIES:"+escICS(cat));}
+    if(it.memo)lines.push("DESCRIPTION:"+escICS(it.memo));
+    return lines;
+  }
 
   // 年間予定ウィンドウ（常に全件。個人スケジュールの期間管理）
   state.windows.forEach(w=>{const s=ymd(w.start),e=new Date(ymd(w.end).getTime()+DAY);L.push("BEGIN:VEVENT","UID:"+w.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(s),"DTEND;VALUE=DATE:"+dstamp(e),"SUMMARY:［"+(WIN_KINDS[w.kind]||w.kind)+"］"+escICS(w.title),"END:VEVENT");});
@@ -2352,15 +2372,15 @@ function buildICS(mode){
       if(!it.date)return;
       if(it.allDay){
         const[yy,mo,dd]=it.date.split("-").map(Number);const d=new Date(yy,mo-1,dd);
-        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(d),"DTEND;VALUE=DATE:"+dstamp(new Date(d.getTime()+DAY)),"SUMMARY:"+escICS(title),icsClass(vis),"END:VEVENT");
+        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(d),"DTEND;VALUE=DATE:"+dstamp(new Date(d.getTime()+DAY)),"SUMMARY:"+escICS(title),icsClass(vis),...icsItemMeta(it,vis),"END:VEVENT");
       }else{
         const[hh,mm]=(it.time||"09:00").split(":").map(Number);const[yy,mo,dd]=it.date.split("-").map(Number);
         const start=new Date(yy,mo-1,dd,hh,mm,0);const end=new Date(start.getTime()+(it.dur||60)*60000);
-        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+escICS(title),icsClass(vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
+        L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+escICS(title),icsClass(vis),...icsItemMeta(it,vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
       }
     }else if(it.time){
       const{start,end}=firstOcc(it);
-      L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"RRULE:"+rrule(it),"SUMMARY:"+escICS(title),icsClass(vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
+      L.push("BEGIN:VEVENT","UID:"+it.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"RRULE:"+rrule(it),"SUMMARY:"+escICS(title),icsClass(vis),...icsItemMeta(it,vis),...(mode!=="shared"?alarm(it.title):[]),"END:VEVENT");
     }
   });
 
@@ -2370,12 +2390,12 @@ function buildICS(mode){
     const evTitle=sharedTitle(vis,ev.title,"予定あり");
     if(evTitle===null)return;
     const pd=ymd(ev.date);
-    L.push("BEGIN:VEVENT","UID:"+ev.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(pd),"DTEND;VALUE=DATE:"+dstamp(new Date(pd.getTime()+DAY)),"SUMMARY:"+(mode==="personal"?"［目標］":"")+escICS(evTitle),icsClass(vis),"END:VEVENT");
+    L.push("BEGIN:VEVENT","UID:"+ev.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;VALUE=DATE:"+dstamp(pd),"DTEND;VALUE=DATE:"+dstamp(new Date(pd.getTime()+DAY)),"SUMMARY:"+(mode==="personal"?"［目標］":"")+escICS(evTitle),icsClass(vis),...icsItemMeta(ev,vis),"END:VEVENT");
     ev.steps.forEach(s=>{
       const stepTitle=sharedTitle(vis,s.title,"準備作業");
       if(stepTitle===null)return;
       const due=pinDue(ev,s);due.setHours(9,0,0,0);const end=new Date(due.getTime()+(s.dur?s.dur*60:30)*60000);
-      L.push("BEGIN:VEVENT","UID:"+s.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(due),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+(mode==="personal"?"［MS］":"")+escICS(stepTitle),icsClass(vis),...(mode!=="shared"?alarm(s.title):[]),"END:VEVENT");
+      L.push("BEGIN:VEVENT","UID:"+s.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(due),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+(mode==="personal"?"［MS］":"")+escICS(stepTitle),icsClass(vis),...icsItemMeta(ev,vis),...(mode!=="shared"?alarm(s.title):[]),"END:VEVENT");
     });
   });
 
@@ -2385,7 +2405,7 @@ function buildICS(mode){
     const taskTitle=sharedTitle(vis,t.title,"予定あり");
     if(taskTitle===null)return;
     const[yy,mo,dd]=t.date.split("-").map(Number);const start=new Date(yy,mo-1,dd,9,0,0);const end=new Date(start.getTime()+(t.dur||30)*60000);
-    L.push("BEGIN:VEVENT","UID:"+t.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+(mode==="personal"?"［タスク］":"")+escICS(taskTitle),icsClass(vis),...(mode!=="shared"?alarm(t.title):[]),"END:VEVENT");
+    L.push("BEGIN:VEVENT","UID:"+t.id+"@jikanbo.local","DTSTAMP:"+dtUTC(new Date()),"DTSTART;TZID=Asia/Tokyo:"+dtLocal(start),"DTEND;TZID=Asia/Tokyo:"+dtLocal(end),"SUMMARY:"+(mode==="personal"?"［タスク］":"")+escICS(taskTitle),icsClass(vis),...icsCtxMeta(t,vis),...(mode!=="shared"?alarm(t.title):[]),"END:VEVENT");
   });
 
   L.push("END:VCALENDAR");
@@ -2466,7 +2486,8 @@ async function syncDown(){
 }
 function kindMark(k){return {fixed:"［固定］",recurring:"［定期］",invest:"［投資］",growth:"［成長］",project:"［目標］",travel:"［移動］"}[k]||"";}
 function rrule(it){switch(it.rep){case "weekly":return "FREQ=WEEKLY;BYDAY="+it.day;case "biweekly":return "FREQ=WEEKLY;INTERVAL=2;BYDAY="+it.day;case "monthly-date":return "FREQ=MONTHLY;BYMONTHDAY="+it.mday;case "n-monthly":return "FREQ=MONTHLY;INTERVAL="+(it.interval||2)+";BYMONTHDAY="+(it.mday||1);case "monthly-nth":return "FREQ=MONTHLY;BYDAY="+it.nth+it.day;case "yearly":return "FREQ=YEARLY;BYMONTH="+it.month+";BYMONTHDAY="+it.mday;}}
-function firstOcc(it){const[hh,mm]=(it.time||"09:00").split(":").map(Number);const now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);if(it.rep==="weekly"){const t=DAYIDX[it.day];while(d.getDay()!==t||d<now)d.setDate(d.getDate()+1);}else if(it.rep==="monthly-date"){d.setDate(it.mday);if(d<now)d.setMonth(d.getMonth()+1);}else if(it.rep==="monthly-nth"){d=nthWd(now.getFullYear(),now.getMonth(),it.nth,it.day,hh,mm);if(d<now)d=nthWd(now.getFullYear(),now.getMonth()+1,it.nth,it.day,hh,mm);}else if(it.rep==="yearly"){d=new Date(now.getFullYear(),it.month-1,it.mday,hh,mm,0);if(d<now)d.setFullYear(d.getFullYear()+1);}return {start:d,end:new Date(d.getTime()+(it.dur||60)*60000)};}
+function _lastDay(y,m){return new Date(y,m+1,0).getDate();}
+function firstOcc(it){const[hh,mm]=(it.time||"09:00").split(":").map(Number);const now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);if(it.rep==="weekly"){const t=DAYIDX[it.day];while(d.getDay()!==t||d<now)d.setDate(d.getDate()+1);}else if(it.rep==="monthly-date"){let y=now.getFullYear(),m=now.getMonth();d=new Date(y,m,Math.min(it.mday,_lastDay(y,m)),hh,mm,0);if(d<now){m++;if(m>11){m=0;y++;}d=new Date(y,m,Math.min(it.mday,_lastDay(y,m)),hh,mm,0);}}else if(it.rep==="monthly-nth"){d=nthWd(now.getFullYear(),now.getMonth(),it.nth,it.day,hh,mm);if(d<now)d=nthWd(now.getFullYear(),now.getMonth()+1,it.nth,it.day,hh,mm);}else if(it.rep==="yearly"){d=new Date(now.getFullYear(),it.month-1,Math.min(it.mday,_lastDay(now.getFullYear(),it.month-1)),hh,mm,0);if(d<now)d=new Date(now.getFullYear()+1,it.month-1,Math.min(it.mday,_lastDay(now.getFullYear()+1,it.month-1)),hh,mm,0);}return {start:d,end:new Date(d.getTime()+(it.dur||60)*60000)};}
 function nthWd(y,m,nth,day,hh,mm){const t=DAYIDX[day];if(nth==="-1"){let d=new Date(y,m+1,0,hh,mm);while(d.getDay()!==t)d.setDate(d.getDate()-1);return d;}let c=0,d=new Date(y,m,1,hh,mm);while(true){if(d.getDay()===t){c++;if(c===parseInt(nth))return d;}d.setDate(d.getDate()+1);if(d.getMonth()!==m)return new Date(y,m,1,hh,mm);}}
 
 /* ====== 編集モーダル ====== */
@@ -2507,9 +2528,9 @@ function openEdit(type,id,evId){
         const rep=repSel.value;daySel.innerHTML="";
         const wrap=document.getElementById("dlg-wrap-day"),lab=document.getElementById("dlg-day-lab");
         if(rep==="weekly"||rep==="biweekly"){lab.textContent="曜日";wrap.style.visibility="visible";DAYS.forEach(([v,l])=>daySel.add(new Option(l,v)));if(it.day)daySel.value=it.day;}
-        else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){lab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=28;d++)daySel.add(new Option(d+"日",d));if(it.mday)daySel.value=it.mday;}
+        else if(rep==="monthly-date"||rep==="2-monthly"||rep==="3-monthly"||rep==="6-monthly"){lab.textContent="日";wrap.style.visibility="visible";for(let d=1;d<=31;d++)daySel.add(new Option(d+"日",d));if(it.mday)daySel.value=it.mday;}
         else if(rep==="monthly-nth"){lab.textContent="第n/曜日";wrap.style.visibility="visible";NTH.forEach(([nv,nl])=>DAYS.forEach(([dv,dl])=>daySel.add(new Option(nl+dl,nv+"|"+dv))));if(it.nth&&it.day)daySel.value=it.nth+"|"+it.day;}
-        else if(rep==="yearly"){lab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=28;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});if(it.month&&it.mday)daySel.value=it.month+"|"+it.mday;}
+        else if(rep==="yearly"){lab.textContent="月/日";wrap.style.visibility="visible";MONTHS.forEach(m=>{for(let d=1;d<=31;d++)daySel.add(new Option(m+"/"+d,m+"|"+d));});if(it.month&&it.mday)daySel.value=it.month+"|"+it.mday;}
         else{if(wrap)wrap.style.visibility="hidden";}
       }
       const repSel=document.getElementById("dlg-f-rep");if(repSel)repSel.onchange=rebuildDlgDay;
