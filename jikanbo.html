@@ -1835,8 +1835,14 @@ const CTX_TYPE_LABELS={customer:"顧客",project:"プロジェクト",work:"仕�
 const CTX_PRESET_COLORS=["#5B7186","#A9854F","#79906E","#A3604C","#6E6E89","#B08A4A","#7A8E98","#9E7B82","#7B9E8A","#888888"];
 
 // 文脈リスト（state.contextsを正本とする）
+// 組み込み仮想ページ（全予定・顧客・プライベート）+ ユーザー定義コンテキスト
+const VIRTUAL_CTXS=[
+  {id:null,       name:"全予定"},
+  {id:'__cust__', name:"顧客",        _virtual:true, color:'#5B7186'},
+  {id:'__priv__', name:"プライベート",_virtual:true, color:'#79906E'},
+];
 function homeCtxList(){
-  return [{id:null,name:"全予定"},...(state.contexts||[])];
+  return [...VIRTUAL_CTXS,...(state.contexts||[])];
 }
 function homeCurrentCtx(){
   const list=homeCtxList();
@@ -1844,11 +1850,24 @@ function homeCurrentCtx(){
   return list[homeCtxIdx];
 }
 
-// 予定がこの文脈にマッチするか（後方互換フィルタ）
+// 予定がこの文脈にマッチするか（仮想コンテキスト＋後方互換フィルタ）
 function itemMatchesCtx(it,ctx){
   if(!ctx||!ctx.id) return true;
+  if(ctx.id==='__cust__') return (it.customerType||'internal')==='customer';
+  if(ctx.id==='__priv__') return (it.customerType||'internal')==='private';
   if(it.contextId) return it.contextId===ctx.id;
   return custKey(it)===ctx.name;
+}
+// イベント・タスクの文脈フィルタ（仮想コンテキスト対応）
+function _evSrcForCtx(ctx){
+  if(!ctx||!ctx.id) return state.events;
+  if(ctx.id==='__cust__') return state.events.filter(e=>e.customerType==='customer');
+  if(ctx.id==='__priv__') return state.events.filter(e=>(e.customerType||'internal')==='private');
+  return state.events.filter(e=>e.contextId===ctx.id);
+}
+function _taskSrcForCtx(ctx){
+  if(!ctx||!ctx.id||ctx._virtual) return state.tasks;
+  return state.tasks.filter(t=>t.contextId===ctx.id);
 }
 
 // 指定範囲に予定が発生する日を返す（週表示用）
@@ -1864,10 +1883,8 @@ function homeMonthEntries(year,month,ctx){
   const filtItems=state.items.filter(it=>itemMatchesCtx(it,ctx));
   const out=[];
   filtItems.forEach(it=>{if(!it.rep)return;occInMonth(it,year,month).forEach(dt=>out.push({id:it.id,date:dt,label:it.title,kind:it.category,time:it.time}));});
-  const evSrc=ctx&&ctx.id?state.events.filter(e=>e.contextId===ctx.id):state.events;
-  evSrc.forEach(ev=>{const d=ymd(ev.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:ev.id,date:d,label:ev.title,kind:"anchor"});ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due.getFullYear()===year&&due.getMonth()===month)out.push({id:s.id,date:due,label:s.title,kind:"prep",evId:ev.id});});});
-  const tSrc=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id):state.tasks;
-  tSrc.filter(t=>t.date&&!t.done).forEach(t=>{const d=ymd(t.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:t.id,date:d,label:t.title,kind:"manual"});});
+  _evSrcForCtx(ctx).forEach(ev=>{const d=ymd(ev.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:ev.id,date:d,label:ev.title,kind:"anchor"});ev.steps.forEach(s=>{const due=pinDue(ev,s);if(due.getFullYear()===year&&due.getMonth()===month)out.push({id:s.id,date:due,label:s.title,kind:"prep",evId:ev.id});});});
+  _taskSrcForCtx(ctx).filter(t=>t.date&&!t.done).forEach(t=>{const d=ymd(t.date);if(d.getFullYear()===year&&d.getMonth()===month)out.push({id:t.id,date:d,label:t.title,kind:"manual"});});
   return out;
 }
 
@@ -1904,14 +1921,17 @@ function _renderCtxPager(){
   const nameEl=document.getElementById("home-ctx-name");
   if(nameEl){
     nameEl.textContent=cur.name;
-    nameEl.style.color=(cur.color&&homeCtxIdx>0)?cur.color:"";
+    nameEl.style.color=cur.color||"";
   }
   const dotsEl=document.getElementById("home-ctx-dots");
   if(dotsEl)dotsEl.innerHTML=list.map((c,i)=>{
-    const col=(c.color&&i>0)?c.color:"";
+    const col=c.color||"";
     const style=col&&i===homeCtxIdx?`background:${col};border-radius:4px;`:"";
     return `<span class="ctx-dot${i===homeCtxIdx?' on':''}" style="${style}" onclick="homeCtxIdx=${i};_cbSlide('${i>homeCtxIdx?'right':'left'}');renderHome()"></span>`;
   }).join('');
+  // 仮想ページ（全予定・顧客・プライベート）では管理ボタンを非表示
+  const mgBtn=document.getElementById("home-ctx-manage");
+  if(mgBtn)mgBtn.style.display=(cur._virtual||!cur.id)?'none':'block';
 }
 function _cbSlide(dir){
   const pc=document.getElementById("home-page-content");if(!pc)return;
@@ -1950,7 +1970,7 @@ function _renderHomeMiniQuad(ctx){
   const el=document.getElementById("home-quad");if(!el)return;
   if(!ctx)ctx=homeCurrentCtx();
   const filtItems=state.items.filter(it=>itemMatchesCtx(it,ctx));
-  const filtTasks=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id&&!t.done):B().tasks.filter(t=>!t.done);
+  const filtTasks=_taskSrcForCtx(ctx).filter(t=>!t.done);
   const allT=[
     ...filtItems.map(it=>({title:it.title,important:it.important!=null?it.important:(it.category==='invest'),urgent:it.urgent||false})),
     ...filtTasks.map(t=>({title:t.title,important:t.important,urgent:t.urgent}))
@@ -1984,8 +2004,7 @@ function _renderHomeWeekYear(ctx){
   state.items.filter(it=>itemMatchesCtx(it,ctx)).forEach(it=>{
     occInRange(it,mon,sun).forEach(dt=>weekItems.push({date:dt,title:it.title,kind:it.category}));
   });
-  const tSrc=ctx&&ctx.id?state.tasks.filter(t=>t.contextId===ctx.id):state.tasks;
-  tSrc.filter(t=>!t.done&&t.date).forEach(t=>{
+  _taskSrcForCtx(ctx).filter(t=>!t.done&&t.date).forEach(t=>{
     const d=ymd(t.date);if(d>=mon&&d<=sun)weekItems.push({date:d,title:t.title,kind:"manual"});
   });
   weekItems.sort((a,b)=>a.date-b.date);
@@ -1994,7 +2013,7 @@ function _renderHomeWeekYear(ctx){
     : '<div style="font-size:11px;color:var(--faint)">今週の予定なし</div>';
 
   // 年間・締切（今日以降の直近イベント）
-  const evSrc=ctx&&ctx.id?state.events.filter(e=>e.contextId===ctx.id):state.events;
+  const evSrc=_evSrcForCtx(ctx);
   const upcoming=[];
   evSrc.forEach(ev=>{
     const d=ymd(ev.date);if(d>=today)upcoming.push({date:d,title:ev.title,kind:"anchor"});
@@ -2226,28 +2245,15 @@ function renderQuadCtxFilter(){
 }
 
 function renderQuad(){
-  const allTasks=[];
-  state.items.forEach(it=>{
+  // 予定タブ（state.items）のみ表示
+  const allTasks=state.items.map(it=>{
     let imp=it.important;if(imp===undefined)imp=(it.category==='invest');
     let urg=it.urgent;if(urg===undefined)urg=false;
-    allTasks.push({id:it.id,type:'item',title:it.title,due:null,kind:it.category,important:imp,urgent:urg,draggable:true,data:it,tags:it.tags||[]});
+    return {id:it.id,type:'item',title:it.title,kind:it.category,important:imp,urgent:urg,data:it,tags:it.tags||[]};
   });
-  B().tasks.forEach(t=>{
-    allTasks.push({id:t.id,type:'manual',title:t.title,due:t.date?ymd(t.date):null,kind:'manual',important:t.important,urgent:t.urgent,draggable:true,done:t.done,data:t,tags:t.tags||[]});
-  });
-
-  // 文脈フィルタ
-  let tasks=allTasks;
-  if(quadCtxFilter){
-    const fCtx=state.contexts.find(c=>c.id===quadCtxFilter);
-    tasks=allTasks.filter(t=>{
-      if(t.type==='item'){return itemMatchesCtx(t.data,fCtx||{id:quadCtxFilter});}
-      return t.data.contextId===quadCtxFilter;
-    });
-  }
 
   const ft=state.filterTags||[];
-  if(ft.length){tasks=tasks.filter(t=>(t.tags||[]).some(x=>ft.includes(x)));}
+  const tasks=ft.length?allTasks.filter(t=>(t.tags||[]).some(x=>ft.includes(x))):allTasks;
 
   const buckets={1:[],2:[],3:[],4:[]};
   tasks.forEach(t=>{const q=t.important?(t.urgent?1:2):(t.urgent?3:4);buckets[q].push(t);});
@@ -2255,50 +2261,22 @@ function renderQuad(){
   [1,2,3,4].forEach(q=>{
     const box=document.querySelector(`.qbox[data-q="${q}"]`);
     box.innerHTML=buckets[q].length?buckets[q].map(t=>{
-      if(t.draggable){
-        if(t.type==='manual'){
-          const doneClass=t.done?'manual-done':'';
-          const dur=t.data.dur||30;
-          const tCtx=t.data.contextId?(state.contexts.find(c=>c.id===t.data.contextId)):null;
-          const ctxBadge=tCtx?`<span class="cust-badge other" style="background:${tCtx.color||'var(--muted)'}">${esc(tCtx.name)}</span>`:'';
-          return `<div class="qtask manual draggable ${doneClass}" data-type="manual" data-id="${t.id}">
-            <div class="qrow top">
-              <span class="drag-handle">⋮⋮</span>
-              <button class="star ${t.important?'on':''}" onclick="toggleMeta('manual','${t.id}','important')">★</button>
-              <button class="star urg ${t.urgent?'on':''}" onclick="toggleMeta('manual','${t.id}','urgent')">⚡</button>
-              <input type="checkbox" ${t.done?'checked':''} onchange="toggleMeta('manual','${t.id}','done')">
-              <span class="qt">${esc(t.title)}</span>
-            </div>
-            <div class="qrow bot">
-              ${ctxBadge}${tagChips(t.tags)}
-              <input type="date" value="${t.data.date||''}" onchange="setMeta('manual','${t.id}','date',this.value)">
-              <input type="number" step="15" value="${dur}" onchange="setMeta('manual','${t.id}','dur',this.value)" title="所要時間(分)">分
-              <button class="tagbtn" onclick="openTagMenu(this,'manual','${t.id}')">＋タグ</button>
-              <button class="mini-edit" onclick="openEdit('manual','${t.id}')">✎</button>
-              <button class="mini-del" onclick="delTask('${t.id}')">×</button>
-            </div>
-          </div>`;
-        }else{
-          const dur=t.data.dur||60;
-          const ct=t.data.customerType||'internal';
-          const ctxBadge=`<span class="cust-badge ${ct}">${esc(customerLabel(t.data))}</span>`;
-          return `<div class="qtask item-row draggable" data-type="item" data-id="${t.id}">
-            <div class="qrow top">
-              <span class="drag-handle">⋮⋮</span>
-              <button class="star ${t.important?'on':''}" onclick="toggleMeta('item','${t.id}','important')">★</button>
-              <button class="star urg ${t.urgent?'on':''}" onclick="toggleMeta('item','${t.id}','urgent')">⚡</button>
-              <span class="qkind k-${t.kind}">${CAT_LABELS[t.kind]||t.kind}</span>
-              <span class="qt">${esc(t.title)}</span>
-            </div>
-            <div class="qrow bot">
-              ${ctxBadge}${tagChips(t.tags)}
-              <button class="tagbtn" onclick="openTagMenu(this,'item','${t.id}')">＋タグ</button>
-              <span class="qd">${dur}分/回</span>
-              <button class="mini-edit" onclick="openEdit('item','${t.id}')">✎</button>
-            </div>
-          </div>`;
-        }
-      }
+      const dur=t.data.dur||60;
+      return `<div class="qtask item-row draggable" data-type="item" data-id="${t.id}">
+        <div class="qrow top">
+          <span class="drag-handle">⋮⋮</span>
+          <button class="star ${t.important?'on':''}" onclick="toggleMeta('item','${t.id}','important')">★</button>
+          <button class="star urg ${t.urgent?'on':''}" onclick="toggleMeta('item','${t.id}','urgent')">⚡</button>
+          <span class="qkind k-${t.kind}">${CAT_LABELS[t.kind]||t.kind}</span>
+          <span class="qt">${esc(t.title)}</span>
+        </div>
+        <div class="qrow bot">
+          ${tagChips(t.tags)}
+          <button class="tagbtn" onclick="openTagMenu(this,'item','${t.id}')">＋タグ</button>
+          <span class="qd">${dur}分/回</span>
+          <button class="mini-edit" onclick="openEdit('item','${t.id}')">✎</button>
+        </div>
+      </div>`;
     }).join(""):'<div class="empty">なし</div>';
   });
 
@@ -2677,7 +2655,7 @@ function renderActive(){
   else if(active==="monthly")renderMonthly();
   else if(active==="annual")renderAnnual();
   else if(active==="calendar")renderCalendar();
-  else if(active==="quad"){renderQuadCtxFilter();renderFilter();renderQuad();}
+  else if(active==="quad"){renderFilter();renderQuad();}
   else if(active==="analysis")renderAnalysis();
   else if(active==="estimate")renderEstimate();
   else if(active==="export"){
