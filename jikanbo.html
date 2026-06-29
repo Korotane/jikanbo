@@ -707,7 +707,8 @@
     </section>
     <section class="panel">
       <div class="panel-head"><span class="n">一覧</span><h2>予定一覧</h2>
-        <div class="view-sw" style="margin-left:auto"><button class="vsw on" id="vsw-kind">種別</button><button class="vsw" id="vsw-cust">顧客別</button></div>
+        <button id="del-all-items-btn" style="margin-left:auto;font-size:11px;padding:3px 10px;background:none;border:1px solid var(--ember);color:var(--ember);border-radius:5px;cursor:pointer">全件削除</button>
+        <div class="view-sw" style="margin-left:8px"><button class="vsw on" id="vsw-kind">種別</button><button class="vsw" id="vsw-cust">顧客別</button></div>
       </div>
       <div class="panel-body">
         <div id="cust-filter-bar"></div>
@@ -739,7 +740,7 @@
       <div class="panel-body"><div class="pins-list" id="pins-list"></div></div>
     </section>
     <section class="panel">
-      <div class="panel-head"><span class="n">④</span><h2>年間の予定を入れる</h2></div>
+      <div class="panel-head"><span class="n">④</span><h2>年間の予定を入れる</h2><button id="del-all-windows-btn" style="margin-left:auto;font-size:11px;padding:3px 10px;background:none;border:1px solid var(--ember);color:var(--ember);border-radius:5px;cursor:pointer">全件削除</button></div>
       <div class="panel-body"><div id="windows" style="margin-bottom:16px;"></div>
         <div class="form-grid">
           <div class="field c3"><label for="w-kind">種別</label><select id="w-kind"><option value="customer">顧客</option><option value="internal">社内</option><option value="private">プライベート</option><option value="holiday">休業</option><option value="other">その他</option></select></div>
@@ -751,7 +752,7 @@
       </div>
     </section>
     <section class="panel">
-      <div class="panel-head"><span class="n">③</span><h2>ガントチャートを組む</h2></div>
+      <div class="panel-head"><span class="n">③</span><h2>ガントチャートを組む</h2><button id="del-all-events-btn" style="margin-left:auto;font-size:11px;padding:3px 10px;background:none;border:1px solid var(--ember);color:var(--ember);border-radius:5px;cursor:pointer">全件削除</button></div>
       <div class="panel-body">
         <div class="ev-ctrl-bar">
           <div class="view-sw"><button class="vsw on" id="ev-vsw-date">日付順</button><button class="vsw" id="ev-vsw-cust">顧客別</button></div>
@@ -2808,6 +2809,23 @@ document.getElementById("reset-all-btn").onclick=()=>{
   if(!confirm("すべての予定・タスク・目標・タグ・文脈を削除します。\nこの操作は元に戻せません。よろしいですか？")) return;
   localStorage.removeItem(STORE_KEY);
   location.reload();
+};
+
+// 各タブの全件削除ボタン
+document.getElementById("del-all-items-btn").onclick=()=>{
+  if(!state.items.length)return;
+  if(!confirm(`予定 ${state.items.length} 件をすべて削除します。よろしいですか？`))return;
+  state.items=[];save();renderBudget();renderActive();
+};
+document.getElementById("del-all-events-btn").onclick=()=>{
+  if(!state.events.length)return;
+  if(!confirm(`ゴール・ガントチャート ${state.events.length} 件をすべて削除します。よろしいですか？`))return;
+  state.events=[];save();renderAnnual();
+};
+document.getElementById("del-all-windows-btn").onclick=()=>{
+  if(!state.windows.length)return;
+  if(!confirm(`年間予定 ${state.windows.length} 件をすべて削除します。よろしいですか？`))return;
+  state.windows=[];save();renderAnnual();
 };
 
 /* uid は load() より前に必要なため script 上部に移動済み */
